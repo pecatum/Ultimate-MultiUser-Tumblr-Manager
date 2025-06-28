@@ -179,7 +179,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if(scanForDefaultAvatarsButton) scanForDefaultAvatarsButton.disabled = true;
     }
     
-    // GÜNCELLENDİ: Gerçek worker havuzu mantığı eklendi
     async function fetchAllFollowedBlogsData() {
         if (!selectedAppUsernameForModule || isLoadingAllFollowingApi) return;
         isLoadingAllFollowingApi = true;
@@ -222,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!continueProcessing) break;
                     
                     if (pauseState.paused) {
-                        await delay(1000); // Duraklatma aktifken bekle
+                        await delay(1000); 
                         continue;
                     }
 
@@ -243,8 +242,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             });
                             if (newlyFetchedBlogs.length > 0) {
                                 allFollowedBlogsData.push(...newlyFetchedBlogs);
-                                // UI güncellemelerini daha az sıklıkla yapmak performansı artırabilir
-                                // Örneğin her 100 blogda bir
                                 if (allFollowedBlogsData.length % 100 < blogsPerApiBatch) {
                                      renderPaginationControls();
                                      renderPage(currentPage);
@@ -255,24 +252,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (error.isRateLimitError && !pauseState.paused) {
                             pauseState.paused = true;
                             logAction(`API Limiti Aşıldı. Tüm işçiler 20 saniye duraklatılıyor...`, 'warn');
-                            taskQueue.unshift(task); // Görevi başa geri koy
+                            taskQueue.unshift(task); 
                             setTimeout(() => {
                                 logAction('Duraklatma bitti. İşçiler devam ediyor...', 'info');
                                 pauseState.paused = false;
                             }, 20000);
                         } else if (!error.isRateLimitError) {
                              logAction(`Görev başarısız (offset ${task.offset}): ${error.message}`, 'error');
-                             taskQueue.push(task); // Başarısız görevi sona ekleyip tekrar dene
-                        }
-                        // Eğer zaten pause modundaysa, görevi geri koyup bekle
-                        else if (error.isRateLimitError && pauseState.paused) {
+                             taskQueue.push(task); 
+                        } else if (error.isRateLimitError && pauseState.paused) {
                            taskQueue.unshift(task);
                         }
                     } finally {
                         processedTasks++;
                         updateProgressBar(followingLoadProgressBar, (processedTasks / totalTasks) * 100);
                         followingLoadProgressText.textContent = `${processedTasks}/${totalTasks} paket`;
-                        await delay(1000); // Her işçi her istekten sonra 1 saniye bekler
+                        await delay(1000); 
                     }
                 }
             };
@@ -319,14 +314,14 @@ document.addEventListener('DOMContentLoaded', () => {
         avatarScanProgressContainer.style.display = 'block';
         updateProgressBar(avatarScanProgressBar, 0);
 
-        logAction("Varsayılan avatar taraması başlatıldı (20 paralel işçi)...", "system");
+        logAction("Varsayılan avatar taraması başlatıldı (50 paralel işçi)...", "system");
         
         const taskQueue = [...allFollowedBlogsData];
         const totalToScan = taskQueue.length;
         let processedCount = 0;
         let foundCount = 0;
         
-        const avatarWorkerCount = 50;
+        const avatarWorkerCount = 50; // Worker sayısı 50'ye çıkarıldı
 
         const worker = async (workerId) => {
             while (taskQueue.length > 0) {
@@ -570,6 +565,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    // GÜNCELLENDİ: Takipten çıkarma işlemi de worker havuzu mantığına geçirildi
     async function processUnfollowQueue() {
         if (selectedBlogsToUnfollow.size === 0) {
             logAction("Takipten çıkarılacak blog seçilmedi.", "warn");
@@ -578,80 +574,83 @@ document.addEventListener('DOMContentLoaded', () => {
         continueProcessing = true;
         unfollowSelectedButton.disabled = true;
         stopUnfollowButton.style.display = 'inline-block';
-        logAction(`${selectedBlogsToUnfollow.size} blog takipten çıkarılmak üzere sıraya alındı.`, "system");
-
+        logAction(`${selectedBlogsToUnfollow.size} blog takipten çıkarılmak üzere sıraya alındı (10 paralel işçi)...`, "system");
+        
+        const taskQueue = Array.from(selectedBlogsToUnfollow);
+        const totalToProcess = taskQueue.length;
+        if(totalSelectedForUnfollowDisplaySpan) totalSelectedForUnfollowDisplaySpan.textContent = totalToProcess;
+        
         let succeededCount = 0;
         let failedCount = 0;
-        const blogsToProcessArray = Array.from(selectedBlogsToUnfollow);
-        const totalToProcess = blogsToProcessArray.length;
-        if(totalSelectedForUnfollowDisplaySpan) totalSelectedForUnfollowDisplaySpan.textContent = totalToProcess;
-        if(unfollowedCountSpan) unfollowedCountSpan.textContent = '0';
-        
-        const batchSize = 10;
+        let processedCount = 0;
+        let pauseState = { paused: false };
 
-        for (let i = 0; i < totalToProcess; i += batchSize) {
-            if (!continueProcessing) {
-                logAction("Takipten çıkarma işlemi kullanıcı tarafından durduruldu.", "warn");
-                break;
-            }
+        const worker = async (workerId) => {
+            while (taskQueue.length > 0) {
+                if (!continueProcessing) break;
 
-            const batch = blogsToProcessArray.slice(i, i + batchSize);
-            logAction(`${i + 1} - ${i + batch.length} arası ${batch.length} blogluk grup işleniyor...`, 'system');
-            try {
-                const batchPromises = batch.map(blogNameToUnfollow => {
-                    const blogData = allFollowedBlogsData.find(b => b.name === blogNameToUnfollow) || { url: `https://${blogNameToUnfollow}.tumblr.com`, name: blogNameToUnfollow };
-                    return executeApiActionForModule('unfollowTumblrBlog', { urlString: blogData.url })
-                        .then(response => ({ status: 'fulfilled', value: response, blogName: blogNameToUnfollow }))
-                        .catch(error => {
-                            if (error.isRateLimitError) throw error;
-                            return { status: 'rejected', reason: error, blogName: blogNameToUnfollow };
-                        });
-                });
-
-                const results = await Promise.all(batchPromises);
-
-                for (const result of results) {
-                    const { blogName } = result;
-                    if (result.status === 'fulfilled') {
-                        succeededCount++;
-                        logAction(`'${blogName}' başarıyla takipten çıkarıldı.`, "success");
-                        
-                        const itemElement = displayedBlogItems.get(blogName);
-                        if(itemElement) itemElement.remove();
-                        allFollowedBlogsData = allFollowedBlogsData.filter(b => b.name !== blogName);
-                        displayedBlogItems.delete(blogName);
-                        selectedBlogsToUnfollow.delete(blogName);
-                    } else if(result.status === 'rejected') {
-                        failedCount++;
-                        logAction(`'${blogName}' takipten çıkarılırken hata: ${result.reason.message}`, "error");
-                    }
-                }
-            } catch (error) {
-                 if (error.isRateLimitError) {
-                    logAction(`API Limiti Aşıldı. Takipten çıkarma 60 saniye duraklatılıyor...`, 'warn');
-                    await delay(60000);
-                    logAction('60 saniye beklendi. Başarısız olan grup yeniden deneniyor...', 'info');
-                    i -= batchSize;
+                if (pauseState.paused) {
+                    await delay(1000);
                     continue;
-                } else {
-                    logAction(`Takipten çıkarma grubunda kritik hata: ${error.message}`, 'error');
+                }
+
+                const blogNameToUnfollow = taskQueue.shift();
+                if (!blogNameToUnfollow) continue;
+                
+                logAction(`İşçi #${workerId}, '${blogNameToUnfollow}' blogunu takipten çıkarıyor...`, 'debug');
+
+                try {
+                    const blogData = allFollowedBlogsData.find(b => b.name === blogNameToUnfollow) || { url: `https://${blogNameToUnfollow}.tumblr.com`, name: blogNameToUnfollow };
+                    await executeApiActionForModule('unfollowTumblrBlog', { urlString: blogData.url });
+                    
+                    succeededCount++;
+                    logAction(`'${blogNameToUnfollow}' başarıyla takipten çıkarıldı.`, "success");
+                        
+                    const itemElement = displayedBlogItems.get(blogNameToUnfollow);
+                    if(itemElement) itemElement.remove();
+                    
+                    // Ana veri setlerinden de çıkar
+                    allFollowedBlogsData = allFollowedBlogsData.filter(b => b.name !== blogNameToUnfollow);
+                    displayedBlogItems.delete(blogNameToUnfollow);
+                    selectedBlogsToUnfollow.delete(blogNameToUnfollow);
+
+                } catch (error) {
+                    if (error.isRateLimitError && !pauseState.paused) {
+                        pauseState.paused = true;
+                        logAction(`API Limiti Aşıldı. Takipten çıkarma 10 saniye duraklatılıyor...`, 'warn');
+                        taskQueue.unshift(blogNameToUnfollow); 
+                        setTimeout(() => {
+                            logAction('Duraklatma bitti. İşçiler devam ediyor...', 'info');
+                            pauseState.paused = false;
+                        }, 10000);
+                    } else if (!error.isRateLimitError) {
+                        failedCount++;
+                        logAction(`'${blogNameToUnfollow}' takipten çıkarılırken hata: ${error.message}`, "error");
+                    } else if (error.isRateLimitError && pauseState.paused) {
+                        taskQueue.unshift(blogNameToUnfollow);
+                    }
+                } finally {
+                    processedCount = succeededCount + failedCount;
+                    if(unfollowedCountSpan) unfollowedCountSpan.textContent = succeededCount;
+                    if (unfollowProgressBarEl) updateProgressBar(unfollowProgressBarEl, (processedCount / totalToProcess) * 100);
+                    await delay(1000); // Her işçi her işlemden sonra 1 saniye bekler
                 }
             }
-
-            const processedCount = succeededCount + failedCount;
-            if(unfollowedCountSpan) unfollowedCountSpan.textContent = succeededCount;
-            if (unfollowProgressBarEl) updateProgressBar(unfollowProgressBarEl, (processedCount / totalToProcess) * 100);
-
-            if (i + batchSize < totalToProcess && continueProcessing) {
-                logAction(`Takipten çıkarma grubu tamamlandı. 2 saniye bekleniyor...`, 'info');
-                await delay(2000);
-            }
-        }
+        };
         
+        const unfollowWorkerCount = 10;
+        const workers = [];
+        for (let i = 0; i < unfollowWorkerCount; i++) {
+            workers.push(worker(i + 1));
+        }
+        await Promise.all(workers);
+
         logAction(`İşlem tamamlandı. ${succeededCount} blog takipten çıkarıldı, ${failedCount} işlem başarısız oldu.`, "system_success");
         updateSelectedToUnfollowCount(); 
         if(unfollowSelectedButton) unfollowSelectedButton.disabled = selectedBlogsToUnfollow.size === 0;
         if(stopUnfollowButton) stopUnfollowButton.style.display = 'none';
+        renderPaginationControls();
+        renderPage(currentPage);
     }
     
     // --- Event Listener'lar ---
