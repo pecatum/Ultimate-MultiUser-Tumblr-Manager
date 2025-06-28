@@ -1,0 +1,303 @@
+<modulesConfig>
+  <modules>
+    <module>
+      <id>viewExternalBlogInfoPage</id>
+      <displayName>Harici Blog Detaylarını Görüntüle (Yeni Sayfa)</displayName>
+      <description>Bir Tumblr blogunun genel bilgilerini ve son gönderilerini ayrı bir sayfada görüntüler.</description>
+      <type>pageNavigation</type>
+      <targetPage>/modules/blog_info_viewer.html</targetPage>
+    </module>
+    <module>
+      <id>fetchExternalBlogInfoApi</id>
+      <displayName>Harici Blog Bilgisi (JSON Sonuç)</displayName>
+      <description>Bir Tumblr blogunun genel bilgilerini ve son gönderilerini API üzerinden çeker ve sonucu bu sayfada JSON olarak gösterir.</description>
+      <script>blogInfoHandler.js</script>
+      <handlerFunction>getExternalBlogData</handlerFunction>
+      <authenticationType>apiKey</authenticationType>
+      <type>apiAction</type>
+      <params>
+        <param name="blog_identifier" type="string" required="true" prompt="Lütfen blog adını veya URL'sini girin:"/>
+      </params>
+    </module>
+    <module>
+      <id>autoLikerPage</id>
+      <displayName>Otomatik Beğeni Modülü (DİKKATLİ KULLANIN!)</displayName>
+      <description>Paneldeki ve rebloglayanların bloglarındaki gönderileri otomatik olarak beğenir.</description>
+      <type>pageNavigation</type>
+      <targetPage>/modules/auto_liker.html</targetPage>
+    </module>
+    <module>
+      <id>inactiveUnfollowerPage</id>
+      <displayName>İnaktif Blogları Takipten Çıkarıcı</displayName>
+      <description>Uzun süredir aktif olmayan blogları otomatik olarak takipten çıkarır.</description>
+      <type>pageNavigation</type>
+      <targetPage>/modules/inactive_unfollower.html</targetPage>
+    </module>
+    <module>
+      <id>getUserFollowing</id>
+      <displayName>Takip Edilen Blogları Getir (API)</displayName>
+      <description>Kullanıcının takip ettiği blogların listesini çeker.</description>
+      <script>userFollowingHandler.js</script>
+      <handlerFunction>getFollowingList</handlerFunction>
+      <authenticationType>userToken</authenticationType>
+      <type>apiAction</type>
+      <params>
+        <param name="limit" type="number" required="false" default="20"/>
+        <param name="offset" type="number" required="false" default="0"/>
+      </params>
+    </module>
+    <module>
+      <id>unfollowTumblrBlog</id>
+      <displayName>Blogu Takipten Çık (API)</displayName>
+      <description>Belirtilen bir Tumblr blogunu takipten çıkarır.</description>
+      <script>unfollowHandler.js</script>
+      <handlerFunction>unfollowBlog</handlerFunction>
+      <authenticationType>userToken</authenticationType>
+      <type>apiAction</type>
+      <params>
+        <param name="urlString" type="string" required="true" prompt="Takipten çıkarılacak blogun URL'si:"/>
+      </params>
+    </module>
+    <module
+            id="urlNoteExtractorModule"
+            displayName="URL'den Not Çekerek Takip Önerisi"
+            type="pageNavigation"
+            targetPage="/modules/url_note_extractor.html"
+            description="Belirtilen gönderi URL'lerindeki notlardan potansiyel blogları bulur ve takip önerileri sunar."
+            authenticationType="userTokenRequired"> </module>
+
+        <module
+            id="fetchNotesFromPostUrl"
+            displayName="Fetch Notes from Specific Post URL"
+            description="Belirli bir gönderi URL'sinden notları API anahtarı ile çeker."
+            type="apiAction"
+            script="customPostNotesHandler.js"
+            handlerFunction="getNotesForSpecificPost"
+            authenticationType="apiKey"> <params>
+                <param name="blog_identifier" type="string" required="true" prompt="Blog Identifier (e.g., 'username')"/>
+                <param name="post_id" type="string" required="true" prompt="Post ID"/>
+                <param name="mode" type="string" required="false" default="all" prompt="Notes mode (all, likes, conversation, etc.)"/>
+                </params>
+        </module>
+    <module>
+      <id>followSuggesterPage</id>
+      <displayName>Takip Önerileri Modülü</displayName>
+      <description>Panelinizdeki etkileşimlerden yola çıkarak takip edebileceğiniz bloglar önerir.</description>
+      <type>pageNavigation</type>
+      <targetPage>/modules/follow_suggester.html</targetPage>
+    </module>
+    <module>
+    <id>getBlogFollowingStatus</id>
+    <displayName>Blog Takip Durumunu ve Bilgisini Al (API)</displayName>
+    <description>Belirli bir blogun mevcut kullanıcıyla olan takip durumunu ve temel bilgilerini çeker.</description>
+    <script>followingStatusHandler.js</script>
+    <handlerFunction>getBlogFollowingStatus</handlerFunction>
+    <authenticationType>userToken</authenticationType> <type>apiAction</type>
+    <params>
+        <param name="blog_identifier" type="string" required="true" prompt="Blog adı/ID'si:"/>
+    </params>
+</module>
+    <module>
+    <id>getUserLimits</id>
+    <displayName>Kullanıcı Limitlerini Al (API)</displayName>
+    <description>Giriş yapmış kullanıcının günlük takip ve beğeni limitlerini çeker.</description>
+    <script>userLimitsHandler.js</script>
+    <handlerFunction>fetchUserLimits</handlerFunction>
+    <authenticationType>userToken</authenticationType>
+    <type>apiAction</type>
+</module>
+    <module>
+      <id>getDashboardPosts</id>
+      <displayName>Panel Gönderilerini Al (API)</displayName>
+      <description>Giriş yapmış kullanıcının panelindeki son gönderileri çeker.</description>
+      <script>dashboardHandler.js</script>
+      <handlerFunction>fetchDashboardPosts</handlerFunction>
+      <authenticationType>userToken</authenticationType>
+      <type>apiAction</type>
+      <params>
+        <param name="limit" type="number" required="false" default="20" prompt="Kaç gönderi?"/>
+        <param name="since_id" type="string" required="false" prompt="Bu ID'den sonraki (opsiyonel):"/>
+        <param name="notes_info" type="boolean" required="false" default="true"/>
+        <param name="reblog_info" type="boolean" required="false" default="true"/>
+      </params>
+    </module>
+    <module>
+      <id>getPostNotes</id>
+      <displayName>Gönderi Notlarını Al (API)</displayName>
+      <description>Belirli bir gönderinin notlarını (reblogları ve beğenileri) çeker.</description>
+      <script>postHandler.js</script>
+      <handlerFunction>fetchPostNotes</handlerFunction>
+      <authenticationType>userToken</authenticationType> <type>apiAction</type>
+      <params>
+        <param name="blog_identifier" type="string" required="true" prompt="Blog adı/ID'si:"/>
+        <param name="post_id" type="string" required="true" prompt="Gönderi ID'si:"/>
+        <param name="mode" type="string" required="false" default="reblogs" prompt="Not modu (reblogs, likes, all):"/>
+        <param name="before_timestamp" type="number" required="false" prompt="Bu zamandan önceki notlar (opsiyonel):"/>
+      </params>
+    </module>
+    <module>
+      <id>getBlogOriginalPosts</id>
+      <displayName>Blogun Orijinal Gönderilerini Al (API - apiKey ile)</displayName>
+      <description>Belirli bir blogun sadece orijinal gönderilerini çeker (apiKey ile, LikerBot için önerilmez).</description>
+      <script>postHandler.js</script>
+      <handlerFunction>fetchBlogOriginalPosts</handlerFunction>
+      <authenticationType>apiKey</authenticationType>
+      <type>apiAction</type>
+      <params>
+        <param name="blog_identifier" type="string" required="true" prompt="Blog adı/ID'si:"/>
+        <param name="limit" type="number" required="false" default="20" prompt="Kaç gönderi?"/>
+        <param name="offset" type="number" required="false" default="0" prompt="Offset:"/>
+      </params>
+    </module>
+
+    <module>
+      <id>fetchBlogPostsForLiking</id>
+      <displayName>Blog Gönderilerini Çek (LikerBot için - UserToken)</displayName>
+      <description>Belirli bir blogun gönderilerini LikerBot işlemleri için çeker (kullanıcı token'ı ile).</description>
+      <script>postHandler.js</script>       <handlerFunction>fetchPostsForBlog</handlerFunction> <authenticationType>userToken</authenticationType>
+      <type>apiAction</type>
+      <params>
+        <param name="blog_identifier" type="string" required="true"/>
+        <param name="limit" type="number" required="false" default="20"/>
+        <param name="offset" type="number" required="false" default="0"/>
+        <param name="npf" type="boolean" required="false" default="true"/> <param name="notes_info" type="boolean" required="false" default="false"/>
+        <param name="reblog_info" type="boolean" required="false" default="true"/>
+        <param name="type" type="string" required="false" prompt="Gönderi tipi (text, photo vb. - opsiyonel)"/>
+        <param name="before" type="number" required="false" prompt="Bu Unix zaman damgasından önceki gönderiler (opsiyonel)"/>
+        <param name="after" type="number" required="false" prompt="Bu Unix zaman damgasından sonraki gönderiler (opsiyonel)"/>
+      </params>
+    </module>
+    <module>
+      <id>likeTumblrPost</id>
+      <displayName>Gönderi Beğen (API)</displayName>
+      <description>Belirli bir Tumblr gönderisini beğenir.</description>
+      <script>likeHandler.js</script>
+      <handlerFunction>likePost</handlerFunction>
+      <authenticationType>userToken</authenticationType>
+      <type>apiAction</type>
+      <params>
+        <param name="post_id" type="string" required="true" prompt="Beğenilecek gönderinin ID'si:"/>
+        <param name="reblog_key" type="string" required="true" prompt="Gönderinin reblog anahtarı:"/>
+      </params>
+    </module>
+
+    <module>
+      <id>followTumblrBlog</id>
+      <displayName>Blogu Takip Et (API)</displayName>
+      <description>Belirtilen bir Tumblr blogunu takip eder.</description>
+      <script>followHandler.js</script> <handlerFunction>followBlog</handlerFunction>
+      <authenticationType>userToken</authenticationType> <type>apiAction</type>
+      <params>
+        <param name="blog_url" type="string" required="true" prompt="Takip edilecek blogun URL'si:"/>
+        </params>
+    </module>
+    
+        <module>
+      <id>simpleDashboardLikerPage</id>
+      <displayName>Arka Plan Dashboard Liker</displayName>
+      <description>Tarayıcıdan bağımsız olarak, paneldeki gönderileri belirli kurallara göre otomatik olarak beğenir.</description>
+      <type>pageNavigation</type>
+      <targetPage>/modules/simple_dashboard_liker.html</targetPage>
+    </module>
+
+    <module>
+      <id>dashboardLikerBotModule</id>
+      <displayName>Gösterge Paneli Otomatik Beğeni Botu</displayName>
+      <description>Gösterge panelindeki gönderileri analiz ederek, belirli kurallara göre otomatik beğeni yapar.</description>
+      <type>pageNavigation</type>
+      <targetPage>/modules/dashboard_liker_bot.html</targetPage>
+      <authenticationType>userTokenRequired</authenticationType>
+    </module>
+
+        <!-- YENİ EKLENEN ORİJİNAL GÖNDERİ BULUCU SAYFASI -->
+    <module>
+      <id>originalPostFinderPage</id>
+      <displayName>Orijinal Gönderi Bulucu</displayName>
+      <description>Herhangi bir blogun sadece orijinal (reblog olmayan) gönderilerini bulur ve listeler.</description>
+      <type>pageNavigation</type>
+      <targetPage>/modules/original_post_finder.html</targetPage>
+    </module>
+
+    <!-- YENİ EKLENEN BACKEND API EYLEMİ -->
+    <module>
+      <id>fetchBlogOriginalPostsApi</id>
+      <displayName>Blogun Orijinal Gönderilerini Çek (API)</displayName>
+      <description>Belirtilen blogun orijinal gönderilerini API Key ile çeker.</description>
+      <script>originalPostHandler.js</script>
+      <handlerFunction>fetchBlogOriginalPosts</handlerFunction>
+      <authenticationType>apiKey</authenticationType>
+      <type>apiAction</type>
+      <!-- Bu eylemin alacağı parametreleri tanımlıyoruz. Frontend'den bu isimlerle gönderilecek. -->
+      <params>
+        <param name="blog_identifier" type="string" required="true"/>
+        <param name="limit" type="number" required="false" default="20"/>
+        <param name="offset" type="number" required="false" default="0"/>
+        <param name="tag" type="string" required="false"/>
+        <param name="type" type="string" required="false"/>
+      </params>
+    </module>
+
+        <module>
+      <id>multiPostRepublisherPage</id>
+      <displayName>Çoklu İş Parçacıklı Gönderi Klonlayıcı</displayName>
+      <description>Verilen URL'lerdeki gönderileri seçilen hesaptan orijinal gönderi olarak anlık, sıralı veya zamanlanmış şekilde yeniden gönderir.</description>
+      <type>pageNavigation</type>
+      <targetPage>/modules/multi_post_republisher.html</targetPage>
+      <authenticationType>userTokenRequired</authenticationType>
+    </module>
+
+    <module>
+      <id>getPostContentForRepublishApi</id>
+      <displayName>Yeniden Gönderim İçin Gönderi İçeriğini Çek (Klonlama API)</displayName>
+      <description>Bir Tumblr gönderi URL'sinden yeniden göndermek için gerekli tam içeriği (bloklar, etiketler vb.) çeker.</description>
+      <!-- Backend'de bu dosyayı kullanır -->
+      <script>postRepublisherHandler.js</script>
+      <!-- Bu dosyadaki bu fonksiyonu çağırır -->
+      <handlerFunction>fetchPostContentForRepublish</handlerFunction>
+      <authenticationType>apiKey</authenticationType>
+      <type>apiAction</type>
+      <params>
+        <param name="post_url" type="string" required="true"/>
+      </params>
+    </module>
+
+    <module>
+      <id>createNewPostApi</id>
+      <displayName>Yeni Tumblr Gönderisi Oluştur (Klonlama API)</displayName>
+      <description>Belirtilen kullanıcı için verilen içeriklerle yeni bir gönderi oluşturur (sıraya ekler, yayınlar veya planlar).</description>
+      <!-- Backend'de bu dosyayı kullanır -->
+      <script>postRepublisherHandler.js</script>
+      <!-- Bu dosyadaki bu fonksiyonu çağırır -->
+      <handlerFunction>processNewPostSubmission</handlerFunction>
+      <authenticationType>userToken</authenticationType>
+      <type>apiAction</type>
+      <!-- Parametreler client tarafından dinamik olarak gönderildiği için burada belirtilmemiştir -->
+    </module>
+
+
+    <module>
+      <id>multiPostSchedulerPage</id>
+      <displayName>Çoklu Kullanıcı Reblog Planlayıcı</displayName> <description>Seçilen birden fazla kullanıcı için gönderileri anlık, sıralı veya zamanlanmış olarak YENİDEN BLOGLAR.</description> <type>pageNavigation</type>
+      <targetPage>/modules/multi_post_scheduler.html</targetPage>
+      <authenticationType>userTokenRequired</authenticationType>
+    </module>
+
+    <module>
+      <id>getPostDetailsForReblogApi</id> <displayName>Reblog İçin Gönderi Detaylarını Çek (Planlayıcı API)</displayName>
+      <description>Bir Tumblr gönderi URL'sinden reblog için gerekli temel detayları (ID, reblog anahtarı, kaynak blog) çeker.</description>
+      <script>postSchedulerHandler.js</script>
+      <handlerFunction>fetchPostDetailsForReblog</handlerFunction> <authenticationType>apiKey</authenticationType> <type>apiAction</type>
+      <params>
+        <param name="post_url" type="string" required="true" prompt="Reblog yapılacak gönderinin URL'si:"/>
+      </params>
+    </module>
+
+    <module>
+      <id>reblogPostApi</id> <displayName>Tumblr Gönderisini Yeniden Blogla (Planlayıcı API)</displayName>
+      <description>Belirtilen kullanıcı için bir gönderiyi yeniden bloglar (sıraya ekler, yayınlar veya planlar).</description>
+      <script>postSchedulerHandler.js</script>
+      <handlerFunction>processReblogSubmission</handlerFunction> <authenticationType>userToken</authenticationType>
+      <type>apiAction</type>
+      </module>
+    </modules>
+</modulesConfig>

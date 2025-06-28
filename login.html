@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tumblr Uygulaması - Giriş Yap veya Hesap Ekle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white p-8 sm:p-12 rounded-xl shadow-2xl max-w-md w-full text-center">
+        <header class="mb-8">
+            <img src="https://placehold.co/100x100/001935/FFFFFF?text=T" alt="Uygulama Logosu" class="mx-auto mb-4 rounded-full">
+            <h1 id="loginTitle" class="text-3xl font-bold text-gray-800">Tumblr Hesabınızla Bağlanın</h1>
+            <p id="loginSubtitle" class="text-gray-600 mt-2">Uygulamayı kullanmaya devam etmek veya yeni bir hesap eklemek için giriş yapın.</p>
+        </header>
+
+        <main>
+            <button id="tumblrLoginButton" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg text-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-opacity-50">
+                Tumblr ile Devam Et
+            </button>
+            <p class="text-xs text-gray-500 mt-4">
+                Devam ederek uygulamanın Tumblr hesabınıza erişmesine izin vermiş olursunuz.
+            </p>
+        </main>
+
+        <footer class="mt-8">
+            <p class="text-sm text-gray-500">&copy; 2025 Tumblr Uygulamanız</p>
+        </footer>
+    </div>
+
+    <script>
+        // login.js (İstemci Tarafı - Güncellenmiş)
+        const tumblrLoginButton = document.getElementById('tumblrLoginButton');
+        const loginTitle = document.getElementById('loginTitle');
+        const loginSubtitle = document.getElementById('loginSubtitle');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const flow = urlParams.get('flow');
+
+            if (flow === 'new') {
+                loginTitle.textContent = 'Yeni Tumblr Hesabı Ekle';
+                loginSubtitle.textContent = 'Uygulamaya yeni bir Tumblr hesabı bağlamak için devam edin.';
+            }
+            // Eğer ?flow=new parametresi varsa ve kullanıcı butona tıklarsa,
+            // sunucu tarafı bu bilgiyi (yeni bir hesap ekleme akışı olduğu)
+            // callback URL'ine bir şekilde taşıyabilir veya session'da tutabilir.
+            // Şimdilik, buton her zaman aynı OAuth başlatma endpoint'ine yönlendirecek.
+        });
+
+        if (tumblrLoginButton) {
+            tumblrLoginButton.addEventListener('click', () => {
+                // Kullanıcıyı HER ZAMAN sunucudaki OAuth başlatma endpoint'ine yönlendir.
+                // Sunucu tarafı, config.xml'den consumer key/secret okuyacak.
+                // Örnek sunucu endpoint'i: '/auth/tumblr/initiate'
+                console.log("Tumblr OAuth başlatma endpoint'ine yönlendiriliyor: /auth/tumblr/initiate");
+                window.location.href = '/auth/tumblr/initiate'; 
+                // GERÇEK UYGULAMADA YUKARIDAKİ SATIR KULLANILACAKTIR.
+                // Aşağıdaki satır sadece bir simülasyon uyarısıdır.
+                // alert("Tumblr ile giriş akışı burada başlayacak. Sunucudaki '/auth/tumblr/initiate' endpoint'ine yönlendirme yapılacak.");
+            });
+        }
+    </script>
+</body>
+</html>

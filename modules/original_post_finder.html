@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gelişmiş Orijinal Gönderi Bulucu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            scroll-behavior: smooth; 
+            user-select: none; /* Metin seçimini engelle */
+        }
+        .post-card { 
+            transition: all 0.2s ease; 
+            cursor: pointer; 
+        }
+        .post-card:hover { 
+            transform: translateY(-4px); 
+            box-shadow: 0 8px 25px -5px rgba(0,0,0,0.1); 
+        }
+        .post-card.selected { 
+            border-color: #4f46e5; 
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.5); 
+        }
+        /* Resimlerin varsayılan sürükleme davranışını engelle */
+        .post-card img {
+            pointer-events: none;
+        }
+        .progress-bar-container { 
+            background-color: #e9ecef; 
+            border-radius: 0.5rem; 
+            overflow: hidden; 
+        }
+        .progress-bar { 
+            background-color: #4f46e5; 
+            height: 100%; 
+            text-align: center; 
+            color: white; 
+            font-weight: bold; 
+            font-size: 0.75rem; 
+            line-height: 1.25rem; 
+            transition: width 0.3s ease-in-out; 
+        }
+        .selection-box {
+            position: fixed;
+            border: 1px dashed #4f46e5;
+            background-color: rgba(79, 70, 229, 0.1);
+            pointer-events: none; /* Kutunun fare olaylarını engellememesi için */
+            z-index: 9999;
+        }
+        [hidden] { 
+            display: none !important; 
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-slate-800 text-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-6"><div class="flex items-center justify-between h-16"><a href="/index.html" class="font-semibold text-xl hover:text-indigo-300">Tumblr Uygulamam</a></div></div>
+    </nav>
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <!-- Adım 1: Kullanıcı Bilgi Paneli -->
+        <section id="userDashboard" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg mb-8" hidden>
+             <div class="flex flex-col sm:flex-row items-center">
+                <img id="userAvatar" src="https://placehold.co/96x96/e2e8f0/475569?text=Avatar" alt="Avatar" class="w-24 h-24 rounded-full mr-0 sm:mr-6 mb-4 sm:mb-0 border-4 border-slate-200">
+                <div>
+                    <h2 id="userBlogTitle" class="text-2xl md:text-3xl font-bold text-slate-800 text-center sm:text-left">Blog Başlığı Yükleniyor...</h2>
+                    <p id="userBlogName" class="text-lg text-slate-500 text-center sm:text-left">blog-adi.tumblr.com</p>
+                    <div id="userStats" class="flex flex-wrap justify-center sm:justify-start gap-x-4 sm:gap-x-6 gap-y-2 mt-3 text-sm text-slate-600">
+                        <!-- Stats will be inserted here by JS -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Adım 2: Arama Formu -->
+        <section id="searchSection" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg mb-8">
+            <h2 class="text-2xl font-bold text-slate-800 mb-4">Orijinal Gönderileri Bul</h2>
+            <form id="findPostsForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+                    <div class="mb-4">
+                        <label for="blogIdentifier" class="block text-sm font-medium text-slate-700 mb-1">Tumblr Blog Adı</label>
+                        <input type="text" name="blogIdentifier" id="blogIdentifier" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="örn: staff" required>
+                    </div>
+                     <div class="mb-4">
+                        <label for="minNoteCount" class="block text-sm font-medium text-slate-700 mb-1">Minimum Not Sayısı</label>
+                        <select id="minNoteCount" name="minNoteCount" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+                            <option value="0">Tümü</option>
+                            <option value="50">+50 Not</option>
+                            <option value="100">+100 Not</option>
+                            <option value="250">+250 Not</option>
+                            <option value="1000">+1000 Not</option>
+                            <option value="1500">+1500 Not</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Gönderi Tipi Filtresi (Opsiyonel)</label>
+                    <div class="flex flex-wrap gap-x-6 gap-y-3">
+                        <label class="inline-flex items-center"><input type="radio" name="postType" value="all" class="form-radio text-indigo-600" checked> <span class="ml-2">Tümü</span></label>
+                        <label class="inline-flex items-center"><input type="radio" name="postType" value="photo" class="form-radio text-indigo-600"> <span class="ml-2">Fotoğraf</span></label>
+                        <label class="inline-flex items-center"><input type="radio" name="postType" value="video" class="form-radio text-indigo-600"> <span class="ml-2">Video</span></label>
+                        <label class="inline-flex items-center"><input type="radio" name="postType" value="text" class="form-radio text-indigo-600"> <span class="ml-2">Yazı</span></label>
+                        <label class="inline-flex items-center"><input type="radio" name="postType" value="answer" class="form-radio text-indigo-600"> <span class="ml-2">Cevap</span></label>
+                    </div>
+                </div>
+                <button type="submit" id="submitButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition disabled:bg-indigo-400">Taramayı Başlat</button>
+            </form>
+        </section>
+
+        <!-- Adım 3: İlerleme ve Sonuçlar -->
+        <section id="resultsSection" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg mb-8" hidden>
+            <div id="progressContainer" class="mb-8">
+                 <h2 id="progressTitle" class="text-2xl font-bold text-slate-800 mb-2">Tarama İlerlemesi</h2>
+                 <div id="statusText" class="text-sm text-slate-600 mb-2 text-center">Başlatılıyor...</div>
+                 <div class="progress-bar-container h-5"><div id="progressBar" class="progress-bar"></div></div>
+                 <button id="stopButton" class="w-full mt-4 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg">Taramayı Durdur</button>
+            </div>
+            <div id="resultsContainer" class="border-t border-gray-200 pt-6" hidden>
+                <div class="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
+                   <h2 id="resultsTitle" class="text-2xl font-bold text-slate-800">Sonuçlar</h2>
+                   <div class="flex items-center space-x-2">
+                      <select id="sortBy" class="bg-white border border-gray-300 text-gray-800 font-medium py-2 px-3 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="default">Sıralama Yok</option>
+                        <option value="notes_desc">Nota Göre (Çoktan Aza)</option>
+                        <option value="notes_asc">Nota Göre (Azdan Çoğa)</option>
+                      </select>
+                      <button id="selectAllButton" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg text-sm">Hepsini Seç</button>
+                      <button id="downloadButton" class="bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2 px-4 rounded-lg text-sm">.txt İndir</button>
+                   </div>
+                </div>
+                <p id="selectionSummary" class="text-sm text-slate-600 mb-4"><span id="foundCount">0</span> orijinal gönderi bulundu, <span id="selectionCount">0</span> seçildi.</p>
+                <div id="postsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+            </div>
+        </section>
+
+        <div id="errorContainer" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-lg mt-6" hidden></div>
+        <div id="selectionBox" class="selection-box" hidden></div>
+    </main>
+
+    <script>
+    // --- DOM ELEMENTS ---
+    const userDashboard = document.getElementById('userDashboard'), userAvatar = document.getElementById('userAvatar'), userBlogTitle = document.getElementById('userBlogTitle'), userBlogName = document.getElementById('userBlogName'), userStats = document.getElementById('userStats');
+    const findPostsForm = document.getElementById('findPostsForm'), blogIdentifierInput = document.getElementById('blogIdentifier'), submitButton = document.getElementById('submitButton');
+    const minNoteCountSelect = document.getElementById('minNoteCount');
+    const resultsSection = document.getElementById('resultsSection'), progressContainer = document.getElementById('progressContainer'), progressTitle = document.getElementById('progressTitle'), statusText = document.getElementById('statusText'), progressBar = document.getElementById('progressBar'), stopButton = document.getElementById('stopButton');
+    const resultsContainer = document.getElementById('resultsContainer'), resultsTitle = document.getElementById('resultsTitle'), postsContainer = document.getElementById('postsContainer');
+    const sortBySelect = document.getElementById('sortBy');
+    const selectAllButton = document.getElementById('selectAllButton'), downloadButton = document.getElementById('downloadButton'), selectionSummary = document.getElementById('selectionSummary'), foundCount = document.getElementById('foundCount'), selectionCount = document.getElementById('selectionCount');
+    const errorContainer = document.getElementById('errorContainer');
+    const selectionBox = document.getElementById('selectionBox');
+    
+    // --- APP STATE ---
+    let appUsername = null, isCancelled = false, totalPostsToScan = 0, postsScanned = 0;
+    let allFetchedPosts = []; 
+    let isDragging = false;
+    let dragStartX = 0, dragStartY = 0;
+
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        appUsername = urlParams.get('user');
+
+        if (!appUsername) {
+            try {
+                const usersResponse = await fetch('/api/users');
+                const users = await usersResponse.json();
+                if (users && users.length > 0) appUsername = users[0].appUsername;
+                else throw new Error("No users found.");
+            } catch (e) {
+                showError("Uygulamada kayıtlı kullanıcı bulunamadı. Lütfen önce giriş yapın.");
+                return;
+            }
+        }
+
+        try {
+            const response = await fetch('/api/execute-action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ actionId: 'getTumblrUserData', appUsername: appUsername })
+            });
+            if (!response.ok) {
+                const err = await response.json();
+                if (err.needsReAuth) window.location.href = '/auth/tumblr/initiate';
+                throw new Error(err.error || 'Kullanıcı verisi alınamadı.');
+            }
+            const result = await response.json();
+            displayUserData(result.data);
+        } catch (error) {
+            showError(`Oturum hatası: ${error.message}.`);
+        }
+    });
+
+    function displayUserData(data) {
+        userAvatar.src = data.blog.avatar.find(a => a.width === 128)?.url || data.blog.avatar[0]?.url || 'https://placehold.co/96x96/e2e8f0/475569?text=Avatar';
+        userBlogTitle.textContent = data.blog.title || 'Başlık Yok';
+        userBlogName.textContent = data.blog.name;
+        blogIdentifierInput.value = data.blog.name;
+        userStats.innerHTML = `<span><strong>${data.blog.posts.toLocaleString('tr-TR')}</strong> Gönderi</span><span><strong>${data.blog.followers.toLocaleString('tr-TR')}</strong> Takipçi</span><span><strong>${data.user.following.toLocaleString('tr-TR')}</strong> Takip Edilen</span><span><strong>${data.user.likes.toLocaleString('tr-TR')}</strong> Beğeni</span>`;
+        userDashboard.hidden = false;
+    }
+
+    // --- CORE SCANNING LOGIC ---
+    async function startScanningProcess(blogIdentifier, postType) {
+        resetUIState();
+        resultsSection.hidden = false;
+        
+        try {
+            statusText.textContent = `'${blogIdentifier}' için toplam gönderi sayısı alınıyor...`;
+            const apiParams = { blog_identifier: blogIdentifier, limit: 1 };
+            if (postType !== 'all') apiParams.type = postType;
+
+            const initialResponse = await makeApiCall('fetchBlogPostsForLiking', apiParams);
+            
+            totalPostsToScan = initialResponse.blog.posts;
+            progressTitle.textContent = `'${initialResponse.blog.title}' Taranıyor`;
+            if (totalPostsToScan === 0) {
+                finishProcess("Bu blogda hiç gönderi bulunamadı.", true);
+                return;
+            }
+
+            const limitPerRequest = 20;
+            const tasks = [];
+            for (let offset = 0; offset < totalPostsToScan; offset += limitPerRequest) {
+                tasks.push({ offset });
+            }
+
+            resultsContainer.hidden = false;
+            await runTaskQueue(tasks, blogIdentifier, postType);
+            finishProcess(isCancelled ? "Tarama kullanıcı tarafından durduruldu." : "Tarama tamamlandı.");
+            
+        } catch (error) {
+            if (!isCancelled) {
+                showError(`İşlem başlatılamadı: ${error.message}`);
+                finishProcess("Hata nedeniyle işlem durduruldu.", true);
+            }
+        }
+    }
+    
+    async function runTaskQueue(tasks, blogIdentifier, postType) {
+        const concurrency = 5;
+        const taskQueue = [...tasks];
+        
+        const worker = async () => {
+            while (taskQueue.length > 0) {
+                if (isCancelled) return;
+                const task = taskQueue.shift();
+                if (!task) continue;
+
+                try {
+                    const pageData = await fetchPage(blogIdentifier, postType, task.offset);
+                    const originalPosts = pageData.posts.filter(p => !p.reblogged_from_id && !p.reblogged_from_name);
+                    
+                    if (originalPosts.length > 0) {
+                        allFetchedPosts.push(...originalPosts);
+                        renderPosts();
+                    }
+                } catch (err) {
+                    console.warn(`Sayfa ${task.offset} çekilirken hata:`, err.message);
+                } finally {
+                    postsScanned += 20; 
+                    updateProgress();
+                }
+            }
+        };
+
+        const workers = Array(concurrency).fill(null).map(worker);
+        await Promise.all(workers);
+    }
+    
+    async function fetchPage(blogIdentifier, postType, offset) {
+        const params = { blog_identifier: blogIdentifier, limit: 20, offset: offset, npf: true };
+        if (postType !== 'all') params.type = postType;
+        return await makeApiCall('fetchBlogPostsForLiking', params);
+    }
+
+    async function makeApiCall(actionId, params) {
+        if (!appUsername) throw new Error("Kullanıcı kimliği bulunamadı.");
+        const response = await fetch('/api/execute-action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ actionId, params, appUsername })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || `Sunucu hatası: ${response.status}`);
+        return result.data;
+    }
+
+    // --- UI & RENDER FUNCTIONS ---
+    function renderPosts() {
+        const minNotes = parseInt(minNoteCountSelect.value, 10);
+        const sortBy = sortBySelect.value;
+        
+        let postsToDisplay = allFetchedPosts.filter(post => post.note_count >= minNotes);
+
+        if (sortBy === 'notes_desc') {
+            postsToDisplay.sort((a, b) => b.note_count - a.note_count);
+        } else if (sortBy === 'notes_asc') {
+            postsToDisplay.sort((a, b) => a.note_count - b.note_count);
+        }
+
+        postsContainer.innerHTML = '';
+        if (postsToDisplay.length > 0) {
+            const fragment = document.createDocumentFragment();
+            postsToDisplay.forEach(post => {
+                const card = createPostElement(post);
+                fragment.appendChild(card);
+            });
+            postsContainer.appendChild(fragment);
+        } else if (postsScanned >= totalPostsToScan && totalPostsToScan > 0) {
+             postsContainer.innerHTML = `<p class="col-span-full text-center text-gray-500 py-8">Filtre kriterlerine uygun gönderi bulunamadı.</p>`;
+        }
+        
+        foundCount.textContent = postsContainer.children.length;
+        updateSelectionCount();
+    }
+
+    function updateProgress() {
+        const scanned = Math.min(postsScanned, totalPostsToScan);
+        const percentage = totalPostsToScan > 0 ? (scanned / totalPostsToScan) * 100 : 0;
+        progressBar.style.width = `${percentage}%`;
+        progressBar.textContent = `${Math.round(percentage)}%`;
+        statusText.textContent = `Gönderiler taranıyor: ${scanned.toLocaleString()} / ${totalPostsToScan.toLocaleString()}`;
+    }
+
+    function finishProcess(message, isError = false) {
+        statusText.textContent = message;
+        if (isError) {
+             progressBar.classList.replace('bg-indigo-600', 'bg-red-500');
+             progressContainer.hidden = false;
+             resultsContainer.hidden = true;
+        } else if (!isCancelled) {
+            progressBar.classList.replace('bg-indigo-600', 'bg-green-500');
+            progressContainer.hidden = true;
+        }
+        stopButton.textContent = 'Yeni Tarama Başlat';
+        renderPosts(); // Final render to apply sorting
+    }
+
+    function resetUIState() {
+        isCancelled = false; postsScanned = 0; allFetchedPosts = [];
+        resultsSection.hidden = true;
+        progressContainer.hidden = false;
+        resultsContainer.hidden = true;
+        errorContainer.hidden = true;
+        postsContainer.innerHTML = '';
+        progressBar.style.width = '0%';
+        progressBar.textContent = '';
+        progressBar.classList.remove('bg-red-500', 'bg-green-500');
+        if(!progressBar.classList.contains('bg-indigo-600')) progressBar.classList.add('bg-indigo-600');
+        stopButton.textContent = 'Taramayı Durdur';
+        foundCount.textContent = "0";
+        updateSelectionCount();
+    }
+
+    function extractImageUrl(post) {
+        if (Array.isArray(post.content)) {
+            const imageBlock = post.content.find(block => block.type === 'image');
+            if (imageBlock && Array.isArray(imageBlock.media) && imageBlock.media.length > 0) {
+                const bestFit = imageBlock.media.find(m => m.width === 500) || imageBlock.media[0];
+                return bestFit.url;
+            }
+        }
+        if (post.type === 'photo' && Array.isArray(post.photos) && post.photos.length > 0) {
+            const photo = post.photos[0];
+            if (Array.isArray(photo.alt_sizes)) {
+                const bestFit = photo.alt_sizes.find(s => s.width === 500) || photo.alt_sizes.find(s => s.width === 400) || photo.alt_sizes[0];
+                if (bestFit) return bestFit.url;
+            }
+            if (photo.original_size) return photo.original_size.url;
+        }
+        if (post.type === 'video' && post.thumbnail_url) {
+            return post.thumbnail_url;
+        }
+        if (post.body) {
+            const match = post.body.match(/<img[^>]+src="([^">]+)"/);
+            if (match && match[1]) {
+                return match[1];
+            }
+        }
+        return null;
+    }
+
+    function createPostElement(post) {
+        const card = document.createElement('div');
+        card.className = 'post-card bg-white rounded-lg shadow border-2 border-transparent p-3 flex flex-col justify-between';
+        card.dataset.postUrl = post.post_url;
+        if (post.isSelected) {
+            card.classList.add('selected');
+            card.dataset.selected = 'true';
+        } else {
+            card.dataset.selected = 'false';
+        }
+        
+        const imageUrl = extractImageUrl(post);
+
+        let mediaHtml = '';
+        if (imageUrl) {
+            mediaHtml = `<div class="w-full h-48 bg-gray-100 rounded-md mb-3 overflow-hidden"><img draggable="false" src="${imageUrl}" alt="${post.type}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML = '<div class=\\'text-gray-500 text-xs p-2\\'>Görsel yüklenemedi</div>';"></div>`;
+        } else if (post.title) {
+            mediaHtml = `<div class="h-48 flex items-center text-center bg-gray-50 rounded-md mb-3 p-2 font-semibold text-gray-700">${post.title}</div>`;
+        } else {
+            mediaHtml = `<div class="h-48 flex items-center justify-center bg-gray-50 rounded-md mb-3 text-gray-400">(${post.type || 'Bilinmeyen'})</div>`;
+        }
+        
+        const noteCount = post.note_count;
+        card.innerHTML = `<div>${mediaHtml}<div class="text-xs text-gray-500 flex justify-between"><span>${new Date(post.date).toLocaleDateString('tr-TR')}</span><span class="font-semibold">${noteCount.toLocaleString('tr-TR')} not</span></div></div>`;
+        
+        return card;
+    }
+    
+    function toggleCardSelection(card, forceState = null) {
+        const postObject = allFetchedPosts.find(p => p.post_url === card.dataset.postUrl);
+        const currentState = card.dataset.selected === 'true';
+        const newState = forceState === null ? !currentState : forceState;
+        
+        if (currentState !== newState) {
+            card.dataset.selected = newState;
+            card.classList.toggle('selected', newState);
+            if (postObject) {
+                postObject.isSelected = newState;
+            }
+        }
+    }
+    
+    function updateSelectionCount() { selectionCount.textContent = postsContainer.querySelectorAll('.post-card.selected').length; }
+    function showError(message) { errorContainer.textContent = `Hata: ${message}`; errorContainer.hidden = false; }
+    
+    // --- EVENT LISTENERS ---
+    findPostsForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const blogIdentifier = blogIdentifierInput.value.trim();
+        const postType = findPostsForm.elements.postType.value;
+        if(blogIdentifier) {
+            startScanningProcess(blogIdentifier, postType);
+        }
+    });
+
+    stopButton.addEventListener('click', () => {
+        if (stopButton.textContent === 'Yeni Tarama Başlat') {
+            window.location.reload();
+        } else {
+            isCancelled = true;
+            finishProcess("Tarama kullanıcı tarafından durduruluyor...");
+        }
+    });
+
+    minNoteCountSelect.addEventListener('change', () => renderPosts());
+    sortBySelect.addEventListener('change', () => renderPosts());
+    
+    selectAllButton.addEventListener('click', () => {
+        const allVisibleCards = postsContainer.querySelectorAll('.post-card');
+        const shouldSelectAll = Array.from(allVisibleCards).some(card => card.dataset.selected === 'false');
+        
+        allVisibleCards.forEach(card => {
+            toggleCardSelection(card, shouldSelectAll);
+        });
+        updateSelectionCount();
+    });
+
+    downloadButton.addEventListener('click', () => {
+        const selectedPosts = allFetchedPosts.filter(p => p.isSelected);
+        if (selectedPosts.length === 0) { alert("Lütfen en az bir gönderi seçin."); return; }
+        const urls = selectedPosts.map(p => p.post_url);
+        const textContent = urls.join('\n');
+        const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${blogIdentifierInput.value}_orijinal_gonderiler.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+
+    // --- DRAG-TO-SELECT LOGIC ---
+    resultsSection.addEventListener('mousedown', (e) => {
+        if (e.button !== 0 || e.target.closest('button, select')) return;
+        
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+
+        const handleMouseMove = (eMove) => {
+            // Only start drawing the box if the mouse has moved a bit
+            if (!isDragging && (Math.abs(eMove.clientX - dragStartX) > 5 || Math.abs(eMove.clientY - dragStartY) > 5)) {
+                isDragging = true;
+                selectionBox.hidden = false;
+            }
+
+            if (isDragging) {
+                eMove.preventDefault();
+                const currentX = eMove.clientX;
+                const currentY = eMove.clientY;
+                const width = currentX - dragStartX;
+                const height = currentY - dragStartY;
+
+                selectionBox.style.width = `${Math.abs(width)}px`;
+                selectionBox.style.height = `${Math.abs(height)}px`;
+                selectionBox.style.left = `${width > 0 ? dragStartX : currentX}px`;
+                selectionBox.style.top = `${height > 0 ? dragStartY : currentY}px`;
+            }
+        };
+
+        const handleMouseUp = (eUp) => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            
+            if (!isDragging) {
+                // It was a click, not a drag
+                const card = eUp.target.closest('.post-card');
+                if (card) {
+                    toggleCardSelection(card);
+                    updateSelectionCount();
+                }
+                return;
+            }
+
+            isDragging = false;
+            selectionBox.hidden = true;
+            
+            const selectionRect = selectionBox.getBoundingClientRect();
+            const cards = postsContainer.querySelectorAll('.post-card');
+            
+            cards.forEach(card => {
+                const cardRect = card.getBoundingClientRect();
+                const intersects = !(selectionRect.right < cardRect.left || 
+                                     selectionRect.left > cardRect.right || 
+                                     selectionRect.bottom < cardRect.top || 
+                                     selectionRect.top > cardRect.bottom);
+
+                if (intersects) {
+                    toggleCardSelection(card, true); // Always select if it intersects
+                }
+            });
+
+            updateSelectionCount();
+        };
+        
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    });
+    </script>
+</body>
+</html>

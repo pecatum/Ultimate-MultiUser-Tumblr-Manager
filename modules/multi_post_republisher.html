@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Çoklu İş Parçacıklı Gönderi Klonlayıcı</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        .progress-bar-container { background-color: #e9ecef; border-radius: 9999px; overflow: hidden; height: 0.625rem; }
+        .progress-bar { background-color: #3b82f6; height: 100%; text-align: center; transition: width 0.4s ease-in-out; }
+
+        .log-console { background-color: #111827; color: #9ca3af; padding: 1rem; border-radius: 0.5rem; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 0.8rem; max-height: 350px; overflow-y: auto; white-space: pre-wrap; border: 1px solid #374151;}
+        .log-console .log-time { color: #6b7280; margin-right: 0.5em;}
+        .log-console .log-info { color: #60a5fa; }
+        .log-console .log-success { color: #34d399; }
+        .log-console .log-system_success { color: #2dd4bf; font-weight: 600;}
+        .log-console .log-warn { color: #facc15; }
+        .log-console .log-error { color: #f87171; font-weight: 600;}
+        .log-console .log-debug { color: #9ca3af; }
+        .log-console .log-system { color: #5eead4; }
+        .log-console div > span.log-type { margin-right: 0.5em; text-transform: uppercase; font-weight: 500;}
+
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }
+
+        .added-url-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #e5e7eb; font-size: 0.875rem;}
+        .added-url-item:last-child { border-bottom: none; }
+        .url-status-fetching { color: #fbbf24; }
+        .url-status-success { color: #34d399; }
+        .url-status-error { color: #f87171; }
+        .url-status-parsed { color: #9ca3af; }
+        .url-status-content-fetched { color: #60a5fa; }
+    </style>
+</head>
+<body class="bg-slate-100 p-4 md:p-6 min-h-screen">
+    <div class="container mx-auto max-w-screen-xl">
+        <header class="mb-6 pb-4">
+            <h1 class="text-3xl font-bold text-slate-800">Çoklu İş Parçacıklı Gönderi Klonlayıcı</h1>
+            <p class="text-slate-600 mt-1">Verilen URL'lerdeki gönderileri seçilen hesaptan orijinal gönderi olarak yeniden yayınlar.</p>
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700">İşlem Yapılacak Hesap:</label>
+                <div id="moduleUserSelectorContainer" class="mt-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-3 border rounded-md bg-white max-h-48 overflow-y-auto custom-scroll">
+                    <p id="noUsersForSelectionMessage" class="text-slate-500 italic col-span-full">Kullanıcılar yükleniyor veya kayıtlı kullanıcı yok...</p>
+                </div>
+                <p id="noUserSelectedWarning" class="text-red-600 text-sm mt-1" style="display: none;">Lütfen işlem yapmak için bir hesap seçin.</p>
+            </div>
+        </header>
+
+        <main class="lg:col-span-8 space-y-6">
+            <section id="step1Container" class="p-5 bg-white rounded-lg shadow-lg">
+                <h2 class="text-xl font-semibold text-slate-700 mb-1">Adım 1: Klonlanacak Gönderi URL'lerini Ekle</h2>
+                <p class="text-sm text-slate-500 mb-4">İçeriğini kopyalayıp yeniden göndermek istediğiniz Tumblr gönderi URL'lerini girin.</p>
+                <div class="flex items-start gap-2 mb-3">
+                    <textarea id="postUrlsInput" rows="4" class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="https://blogadi.tumblr.com/post/1234567890&#10;https://www.tumblr.com/ornekblog/9876543210/yazi-slug"></textarea>
+                    <button id="addUrlsToListButton" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md disabled:opacity-50 shadow-sm h-full">URL'leri İşle</button>
+                </div>
+                <p class="text-xs text-slate-400 mb-4">Her satıra bir URL. Geçerli URL'lerin tam içeriği çekilecektir.</p>
+                <div id="addedUrlsDisplayContainer" class="mt-4 border border-gray-200 rounded-md max-h-60 overflow-y-auto custom-scroll">
+                    <p id="noUrlsAddedMessage" class="text-slate-400 italic p-4 text-center">Henüz URL eklenmedi veya işlenmedi.</p>
+                </div>
+                <div class="progress-bar-container mt-3 h-2"><div id="step1ProgressBar" class="progress-bar"></div></div>
+                <button id="goToStep2Button" class="mt-5 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-md shadow-sm" style="display: none;">Adım 2: Gönderim Modu →</button>
+            </section>
+
+            <section id="step2Container" class="p-5 bg-white rounded-lg shadow-lg" style="display: none;">
+                <h2 class="text-xl font-semibold text-slate-700 mb-4">Adım 2: Gönderim Modunu Seçin</h2>
+                <div class="space-y-3">
+                    <!-- DEĞİŞİKLİK: value="instant" -> value="published" ve yeni seçenekler eklendi -->
+                    <div><label class="flex items-center"><input type="radio" name="sendMode" value="published" class="form-radio h-5 w-5 text-indigo-600 mr-2"> Anlık Yayınla (Published)</label></div>
+                    <div><label class="flex items-center"><input type="radio" name="sendMode" value="queue" class="form-radio h-5 w-5 text-indigo-600 mr-2"> Sıraya Ekle (Queue)</label></div>
+                    <div><label class="flex items-center"><input type="radio" name="sendMode" value="draft" class="form-radio h-5 w-5 text-indigo-600 mr-2"> Taslak Olarak Kaydet (Draft)</label></div>
+                    <div><label class="flex items-center"><input type="radio" name="sendMode" value="private" class="form-radio h-5 w-5 text-indigo-600 mr-2"> Özel Olarak Yayınla (Private)</label></div>
+                    <div><label class="flex items-center"><input type="radio" name="sendMode" value="schedule" class="form-radio h-5 w-5 text-indigo-600 mr-2"> Planla (Belirli Zamanda Yayınla)</label></div>
+                </div>
+                <div class="mt-4">
+                     <label for="commonPostCaptionInput" class="block text-sm font-medium text-gray-700">Ortak Gönderi Açıklaması (Opsiyonel):</label>
+                     <textarea id="commonPostCaptionInput" rows="2" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Tüm gönderilere eklenecek ortak açıklama..."></textarea>
+                </div>
+                <div class="mt-3">
+                    <label for="commonPostTagsInput" class="block text-sm font-medium text-gray-700">Ortak Etiketler (Opsiyonel, virgülle ayırın):</label>
+                    <input type="text" id="commonPostTagsInput" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="etiket1, etiket2, yeni etiket">
+                </div>
+
+                <div class="mt-4 flex items-center">
+                    <input id="useOriginalTagsCheckbox" type="checkbox" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" checked>
+                    <label for="useOriginalTagsCheckbox" class="ml-2 block text-sm text-gray-900">
+                        Orijinal etiketleri kullan (işaretli değilse sadece yukarıdaki ortak etiketler kullanılır).
+                    </label>
+                </div>
+
+                <button id="goToStep3Button" class="mt-5 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-md shadow-sm" style="display: none;">Adım 3: Planlama Kapsamı →</button>
+                <button id="executeActionButtonDirect" class="mt-5 w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-5 rounded-md shadow-sm" style="display: none;">Gönderim İşlemini Başlat →</button>
+            </section>
+
+            <section id="step3Container" class="p-5 bg-white rounded-lg shadow-lg" style="display: none;">
+                <h2 class="text-xl font-semibold text-slate-700 mb-4">Adım 3: Planlama Kapsamını Seçin</h2>
+                <div class="space-y-3">
+                    <p class="text-sm text-slate-600">Gönderiler seçtiğiniz hesaba nasıl planlansın?</p>
+                    <div><label class="flex items-center"><input type="radio" name="scheduleScope" value="bulk" class="form-radio h-5 w-5 text-indigo-600 mr-2"> Tüm Gönderileri Toplu Planla</label></div>
+                    <div><label class="flex items-center"><input type="radio" name="scheduleScope" value="individual" class="form-radio h-5 w-5 text-indigo-600 mr-2"> Her Gönderi İçin Ayrı Ayrı Planla</label></div>
+                </div>
+                <button id="goToStep4Button" class="mt-5 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-md shadow-sm" style="display: none;">Adım 4: Planlama Detayları →</button>
+            </section>
+
+            <section id="step4Container" class="p-5 bg-white rounded-lg shadow-lg" style="display: none;">
+                <h2 id="step4Title" class="text-xl font-semibold text-slate-700 mb-4">Adım 4: Planlama ve Yürütme</h2>
+                <div id="bulkScheduleOptionsContainer" class="space-y-4 mb-6" style="display:none;">
+                    <h3 class="text-lg font-medium text-slate-600">Tüm Gönderiler İçin Toplu Planlama:</h3>
+                    <div>
+                        <label for="bulkScheduleDateTime" class="block text-sm font-medium text-gray-700">İlk Gönderi Yayın Zamanı:</label>
+                        <input type="datetime-local" id="bulkScheduleDateTime" name="bulkScheduleDateTime" class="mt-1 block w-full md:w-1/2 p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="bulkScheduleInterval" class="block text-sm font-medium text-gray-700">Gönderiler Arası Süre (Dakika - Opsiyonel):</label>
+                        <input type="number" id="bulkScheduleInterval" name="bulkScheduleInterval" min="0" placeholder="Örn: 30 (Boş bırakılırsa hepsi aynı anda sıraya alınır)" class="mt-1 block w-full md:w-1/2 p-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                </div>
+                <div id="individualScheduleOptionsContainer" class="space-y-6 mb-6 max-h-[60vh] overflow-y-auto custom-scroll" style="display:none;">
+                     <p class="text-slate-500 italic p-4 text-center">Her gönderi için planlama, açıklama ve etiket ayarları burada listelenecektir.</p>
+                </div>
+                
+                <div class="my-6 p-4 border rounded-lg bg-slate-50 shadow-inner">
+                    <label for="workerCountSlider" class="block text-sm font-medium text-gray-800">Paralel İşlem Kapasitesi (İşçi sayısı): <span id="workerCountValue" class="font-bold text-indigo-600 text-base">10</span></label>
+                    <input type="range" id="workerCountSlider" min="5" max="25" value="10" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <p class="text-xs text-slate-500 mt-1">Aynı anda kaç gönderi işleminin yapılacağını belirler. Yüksek değerler işlemi hızlandırabilir ancak API limitlerine takılma riskini artırabilir.</p>
+                </div>
+
+                <div class="progress-bar-container mt-4 h-2 mb-2"><div id="finalActionProgressBar" class="progress-bar bg-green-500"></div></div>
+                <button id="executeFinalActionButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-5 rounded-lg shadow-md disabled:opacity-50">
+                    Gönderim İşlemini Başlat
+                </button>
+            </section>
+        </main>
+
+        <footer class="mt-8 pt-6 border-t border-gray-300">
+             <h3 class="text-lg font-semibold text-slate-700 mb-2">İşlem Kayıtları</h3>
+             <div id="actionLogArea" class="log-console custom-scroll">Modül hazır. Lütfen işlem yapılacak hesabı seçin.</div>
+        </footer>
+    </div>
+    <script src="/modules/multi_post_republisher_client.js"></script>
+</body>
+</html>

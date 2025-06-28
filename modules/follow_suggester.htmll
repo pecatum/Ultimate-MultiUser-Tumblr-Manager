@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Takip Önerileri Modülü - Son Versiyon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; overflow-x: hidden; background-color: #f1f5f9; }
+        .progress-bar-container { background-color: #e5e7eb; border-radius: 9999px; overflow: hidden; height: 0.75rem; }
+        .progress-bar { background-color: #3b82f6; height: 100%; text-align: center; transition: width 0.4s ease-in-out; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; color: white;}
+        
+        /* Adım 1 Gönderi Kartı - Görsel Ağırlıklı Stil */
+        .dashboard-post-entry {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 1.5rem; 
+            border-radius: 0.75rem; 
+            background-color: #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            overflow: hidden;
+            border: 1px solid #cbd5e1;
+        }
+        .dashboard-post-entry.selected {
+            box-shadow: 0 0 0 3px #60a5fa, 0 4px 12px rgba(0,0,0,0.12);
+            border-color: #60a5fa;
+        }
+        .dashboard-post-entry .post-image-area { /* Resim alanı */
+            width: 100%;
+            min-height: 200px; /* Minimum yükseklik */
+            max-height: 65vh; /* Ekran yüksekliğinin %65'i kadar max yükseklik */
+            overflow: hidden;
+            background-color: #f8fafc; 
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            cursor: zoom-in; 
+        }
+        .dashboard-post-entry .post-image-area img {
+            width: auto; 
+            height: auto; 
+            max-width: 100%;
+            max-height: 65vh; 
+            object-fit: contain; 
+            transition: transform 0.3s ease;
+        }
+        .dashboard-post-entry .post-image-area img:hover {
+            transform: scale(1.03); 
+        }
+        .dashboard-post-entry .post-details-area {
+            padding: 1rem 1.25rem; 
+        }
+        .dashboard-post-entry .post-blog-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        .dashboard-post-entry .post-blog-avatar {
+            width: 40px; 
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 0.875rem; 
+            border: 1px solid #e2e8f0;
+        }
+        .dashboard-post-entry .post-blog-name {
+            font-weight: 600;
+            color: #1e293b; 
+            font-size: 1rem; 
+        }
+        .dashboard-post-entry .post-content-render { /* Gönderi içeriği alanı */
+            font-size: 0.95rem; 
+            color: #334155; 
+            line-height: 1.7; 
+            margin-bottom: 1rem;
+            max-height: 280px; /* İçerik için scroll alanı */
+            overflow-y: auto;
+            word-wrap: break-word;
+            padding-right: 0.5rem; /* Scrollbar için boşluk */
+        }
+        .dashboard-post-entry .post-content-render p { margin-bottom: 0.75em; }
+        .dashboard-post-entry .post-content-render img,
+        .dashboard-post-entry .post-content-render video,
+        .dashboard-post-entry .post-content-render iframe {
+            max-width: 100% !important;
+            height: auto !important;
+            border-radius: 0.5rem; 
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+            display: block;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+         .dashboard-post-entry .post-content-render blockquote {
+            border-left: 4px solid #94a3b8; 
+            padding-left: 1rem;
+            margin-left: 0.25rem;
+            margin-top: 0.75rem;
+            margin-bottom: 0.75rem;
+            font-style: italic;
+            color: #475569;
+        }
+        .dashboard-post-entry .post-meta-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 1rem;
+            margin-top:1rem;
+        }
+        .dashboard-post-entry .post-type-indicator {
+            background-color: #eef2ff; 
+            color: #4338ca;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem; 
+            font-weight: 500;
+        }
+        .dashboard-post-entry .post-selection-checkbox-area {
+            padding: 0.75rem 1.25rem; 
+            display: flex;
+            align-items: center;
+            background-color: #f8fafc; 
+            border-top: 1px solid #e2e8f0;
+        }
+        .dashboard-post-entry .post-selection-checkbox-area label {
+            margin-left: 0.75rem;
+            font-size: 0.9rem;
+            color: #334155;
+            cursor: pointer;
+        }
+
+        /* Sol Panel Kullanıcı Listesi Stilleri (Avatar boyutu güncellendi) */
+        .suggested-user-item img.user-avatar { width: 80px; height: 80px; border-radius: 50%; margin-right: 1rem; border: 3px solid transparent; object-fit:cover; }
+        .suggested-user-item.following-them { border-left: 5px solid #ef4444; padding-left: calc(0.75rem - 5px); background-color: #fee2e2;} 
+        .suggested-user-item.follows-me { border-left: 5px solid #22c55e; padding-left: calc(0.75rem - 5px); background-color: #dcfce7;} 
+        .suggested-user-item.mutual-follow { border-left: 5px solid #3b82f6; padding-left: calc(0.75rem - 5px); background-color: #dbeafe;} 
+        .suggested-user-item.disabled-selection { opacity: 0.7; cursor: default; }
+        .suggested-user-item.disabled-selection:hover { background-color: inherit; }
+        .suggested-user-item.disabled-selection .user-select-checkbox { display: none; }
+
+        .log-console-container { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #cbd5e1; }
+        .log-console { 
+            background-color: #1e293b; color: #e2e8f0; padding: 1rem; 
+            border-radius: 0.5rem; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; 
+            font-size: 0.8rem; height: 300px; /* Sabit yükseklik */ overflow-y: auto; 
+            white-space: pre-wrap; border: 1px solid #334155;
+        }
+        .log-console .log-time { color: #64748b; margin-right: 0.5em;}
+        .log-console .log-type { margin-right: 0.5em; text-transform: uppercase; font-weight: 500;}
+        .log-console .log-info { color: #60a5fa; } .log-console .log-success { color: #34d399; }
+        .log-console .log-system_success { color: #2dd4bf; font-weight: 600;} .log-console .log-warn { color: #facc15; }
+        .log-console .log-error { color: #f87171; font-weight: 600;} .log-console .log-debug { color: #94a3b8; }
+        .log-console .log-system { color: #5eead4; }
+        .custom-scroll::-webkit-scrollbar { width: 8px; } 
+        .custom-scroll::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; } 
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body class="bg-slate-100 p-4 md:p-6 min-h-screen flex flex-col">
+    <div class="container mx-auto max-w-screen-2xl flex-grow">
+        <header class="mb-6 pb-4">
+            <h1 class="text-4xl font-bold text-slate-800">Takip Önerileri Modülü</h1>
+            <div class="mt-4">
+                <label for="moduleUserSelector" class="block text-sm font-medium text-gray-700">İşlem Yapılacak Hesap:</label>
+                <select id="moduleUserSelector" class="mt-1 block w-full md:w-96 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm">
+                    <option value="">Hesap Seçin...</option>
+                </select>
+                <p id="noUserSelectedWarning" class="text-red-600 text-sm mt-1" style="display: none;">Lütfen bir hesap seçin.</p>
+            </div>
+            <div id="userLimitsContainer" class="mt-5 p-4 bg-white rounded-lg shadow" style="display: none;">
+                <h3 class="text-md font-semibold text-slate-600 mb-3">Günlük Kullanım Limitleri</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+                    <div>
+                        <div class="flex justify-between items-center text-xs mb-1">
+                            <span class="text-slate-500">Takip Etme</span>
+                            <span id="followLimitText" class="text-slate-700 font-medium bg-slate-200 px-1.5 py-0.5 rounded-full text-xs">0 / 200</span>
+                        </div>
+                        <div class="progress-bar-container"><div id="followLimitProgressBar" class="progress-bar bg-sky-500"></div></div>
+                        <p id="followResetText" class="text-xs text-slate-400 mt-0.5 text-right"></p>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center text-xs mb-1">
+                            <span class="text-slate-500">Beğeni</span>
+                            <span id="likeLimitText" class="text-slate-700 font-medium bg-slate-200 px-1.5 py-0.5 rounded-full text-xs">0 / 1000</span>
+                        </div>
+                        <div class="progress-bar-container"><div id="likeLimitProgressBar" class="progress-bar bg-pink-500"></div></div>
+                        <p id="likeResetText" class="text-xs text-slate-400 mt-0.5 text-right"></p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <aside id="leftPanelContainer" class="lg:col-span-4 space-y-5 bg-white p-5 rounded-lg shadow-lg h-fit lg:sticky lg:top-6 max-h-[calc(100vh-5rem)] overflow-hidden flex flex-col">
+                 <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-xl font-semibold text-slate-700">Potansiyel Bloglar</h3>
+                        <button id="selectAllStep2UsersButton" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 py-1 px-2 rounded-md shadow-sm" style="display:none;">Tümünü Seç/Bırak</button>
+                    </div>
+                    <div id="suggestedUsersList" class="flex-grow overflow-y-auto border border-gray-200 rounded-md bg-slate-50 custom-scroll min-h-[200px] max-h-[calc(100vh-32rem)]">
+                        <p class="text-slate-400 italic p-4 text-center">Bloglar Adım 2'de burada listelenecek.</p>
+                    </div>
+                </div>
+                <div id="selectedUserDetailsPanel" class="mt-auto p-4 border-t border-gray-200 bg-slate-50" style="display: none;">
+                    <img id="selectedUserAvatar" src="https://placehold.co/128x128/e2e8f0/707070?text=Avatar" alt="Seçili Kullanıcı Avatarı" class="w-24 h-24 rounded-full mx-auto mb-3 border-4 border-slate-200 object-cover shadow-md">
+                    <h4 id="selectedUserName" class="text-md font-semibold text-center text-slate-800 truncate">Kullanıcı Adı</h4>
+                    <p class="text-sm text-center text-indigo-600 mb-1"><a id="selectedUserUrl" href="#" target="_blank" class="hover:underline break-all">blog-url.tumblr.com</a></p>
+                    <p class="text-xs text-center text-gray-500 mb-1">Son Aktif: <span id="selectedUserLastActive">Bilinmiyor</span></p>
+                    <p class="text-xs text-center text-gray-500">Gönderi: <span id="selectedUserPostCount">0</span></p>
+                    <p id="selectedUserDescription" class="mt-2 text-xs text-gray-600 max-h-20 overflow-y-auto p-2 bg-white rounded border custom-scroll"></p>
+                </div>
+            </aside>
+
+            <main class="lg:col-span-8 space-y-6">
+                <section id="step1Container" class="p-5 bg-white rounded-lg shadow-lg" style="display: none;">
+                    <div class="flex flex-wrap justify-between items-center gap-y-2 mb-4">
+                        <h2 class="text-2xl font-semibold text-slate-700">Adım 1: Panel Gönderilerini Seç</h2>
+                        <div class="flex items-center space-x-3">
+                            <span id="fetchedPostCount" class="text-sm text-slate-600 bg-slate-100 px-3 py-1.5 rounded-md">0 gönderi</span>
+                            <button id="stopFetchingButton" class="text-xs bg-red-500 hover:bg-red-600 text-white py-1.5 px-3 rounded-md shadow-sm" style="display:none;">Durdur</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-3 mb-4">
+                        <button id="fetchDashboardButton" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md disabled:opacity-50 shadow-sm">Panel Gönderilerini Çekmeye Başla</button>
+                        <button id="selectAllStep1PostsButton" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-3 rounded-md shadow-sm" style="display:none;">Tümünü Seç/Bırak</button>
+                    </div>
+                    
+                    <div id="dashboardPostsContainer" class="max-h-[calc(100vh-280px)] overflow-y-auto pr-2 custom-scroll space-y-0">
+                        <p class="text-slate-400 italic p-4 text-center">Gönderiler burada listelenecek.</p>
+                    </div>
+                    <button id="goToStep2Button" class="mt-5 w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-5 rounded-md shadow-sm" style="display: none;">Adım 2: Seçili Gönderilerden Devam Et →</button>
+                </section>
+
+                 <section id="step2Container" class="p-5 bg-white rounded-lg shadow-lg" style="display: none;">
+                     <h2 class="text-2xl font-semibold text-slate-700 mb-4">Adım 2: Potansiyel Blogları Bul ve Filtrele</h2>
+                    <div class="mb-4">
+                        <label for="lastActiveFilter" class="block text-sm font-medium text-gray-700">Son Aktiflik Filtresi:</label>
+                        <div class="flex items-center space-x-3 mt-1">
+                            <input type="range" id="lastActiveFilter" min="0" value="4" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
+                            <span id="lastActiveFilterValue" class="text-sm text-gray-600 w-28 text-right min-w-[6rem]">Son 1 Hafta</span>
+                        </div>
+                    </div>
+                    <button id="findSuggestedUsersButton" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md disabled:opacity-50 shadow-sm">Önerilen Blogları Bul</button>
+                    <div class="progress-bar-container mt-4 h-2"><div id="step2ProgressBar" class="progress-bar"></div></div>
+                    <button id="goToStep3Button" class="mt-5 w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-5 rounded-md shadow-sm" style="display: none;">Adım 3: Seçilenleri İşle →</button>
+                </section>
+
+                <section id="step3Container" class="p-5 bg-white rounded-lg shadow-lg" style="display: none;">
+                    <h2 class="text-2xl font-semibold text-slate-700 mb-4">Adım 3: Seçilenleri Takip Et ve Beğen</h2>
+                    <div class="mb-4">
+                        <label for="likesPerUserSlider" class="block text-sm font-medium text-gray-700">Blog Başına Beğenilecek Orjinal Gönderi:</label>
+                         <div class="flex items-center space-x-3 mt-1">
+                            <input type="range" id="likesPerUserSlider" min="0" max="10" value="2" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
+                            <span id="likesPerUserValue" class="text-sm text-gray-600 w-10 text-right">2</span>
+                        </div>
+                    </div>
+                    <button id="followAndLikeButton" class="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-medium py-2.5 px-5 rounded-md disabled:opacity-50 shadow-sm">Takip Et ve Beğen</button>
+                    <div class="progress-bar-container mt-4 h-2"><div id="step3ProgressBar" class="progress-bar"></div></div>
+                    <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="text-center p-3 bg-slate-50 rounded-md border">
+                            <p class="text-xs text-gray-500">Takip Edilen Blog</p>
+                            <p id="followedCount" class="text-xl font-bold text-indigo-600">0</p>
+                        </div>
+                        <div class="text-center p-3 bg-slate-50 rounded-md border">
+                            <p class="text-xs text-gray-500">Beğenilen Gönderi</p>
+                            <p id="likedPostsCountStep3" class="text-xl font-bold text-pink-600">0</p>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <footer class="log-console-container container mx-auto max-w-screen-2xl mt-6 mb-6"> <h3 class="text-lg font-semibold text-slate-700 mb-2">İşlem Kayıtları</h3>
+         <div id="actionLogArea" class="log-console custom-scroll">Modül hazır. Lütfen bir hesap seçin.</div>
+    </footer>
+    <script src="/modules/follow_suggester_client.js"></script>
+</body>
+</html>

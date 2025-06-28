@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tumblr Blog Bilgi Görüntüleyici</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .info-label {
+            font-weight: 600; /* Daha belirgin */
+            color: #334155; /* text-slate-700 */
+            margin-right: 0.5rem;
+        }
+        .info-value {
+            color: #1e293b; /* text-slate-800 */
+            word-break: break-word;
+        }
+        .info-block {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e2e8f0; /* border-slate-200 */
+        }
+        .info-block:last-child {
+            border-bottom: none;
+        }
+        .post-card {
+            border: 1px solid #e2e8f0;
+            transition: box-shadow 0.3s ease-in-out;
+        }
+        .post-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .post-image, .photoset-image {
+            max-height: 250px; /* Biraz daha büyük */
+            object-fit: cover;
+            border-radius: 0.375rem; /* rounded-md */
+        }
+        .clickable-image { cursor: zoom-in; }
+        .modal {
+            display: none; position: fixed; z-index: 1000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.85); /* Daha koyu */
+            align-items: center; justify-content: center;
+        }
+        .modal-content {
+            margin: auto; display: block;
+            max-width: 90vw; max-height: 90vh;
+            border-radius: 0.5rem; /* rounded-lg */
+        }
+        .modal-close {
+            position: absolute; top: 20px; right: 35px;
+            color: #f1f1f1; font-size: 40px; font-weight: bold;
+            transition: 0.3s; cursor: pointer;
+        }
+        .modal-close:hover, .modal-close:focus { color: #bbb; text-decoration: none; }
+        .tag {
+            background-color: #e2e8f0; /* bg-slate-200 */
+            color: #475569; /* text-slate-600 */
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem; /* rounded-sm */
+            font-size: 0.75rem; /* text-xs */
+            margin-right: 0.25rem;
+            margin-bottom: 0.25rem;
+            display: inline-block;
+        }
+        .photoset-grid {
+            display: grid;
+            gap: 0.5rem; /* 8px */
+        }
+        /* Tailwind'de olmayan basit prose stilleri */
+        .prose-custom blockquote {
+            border-left-width: 4px;
+            border-color: #cbd5e1; /* slate-300 */
+            padding-left: 0.75rem; /* pl-3 */
+            font-style: italic;
+            color: #334155; /* slate-700 */
+            margin-top: 0.5rem; margin-bottom: 0.5rem;
+        }
+        .prose-custom-xs { font-size: 0.75rem; line-height: 1rem; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+    <nav class="bg-slate-800 text-white shadow-md sticky top-0 z-[999]">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="/index.html" class="font-semibold text-xl hover:text-indigo-300">Tumblr Uygulamam</a>
+                <div class="flex items-center space-x-3">
+                    <input type="text" id="blogIdentifierInput" placeholder="Blog Adı veya URL" class="px-3 py-2 rounded-md border border-slate-600 bg-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm w-48 sm:w-64">
+                    <button id="getBlogInfoButton" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition duration-150">
+                        Bilgi Getir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <div id="blogInfoLoading" class="text-center my-10" style="display: none;">
+            <p class="text-slate-600 text-lg">Blog bilgileri yükleniyor...</p>
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto mt-4"></div>
+        </div>
+
+        <div id="blogInfoError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative max-w-2xl mx-auto my-6" role="alert" style="display: none;">
+            <strong class="font-bold">Hata!</strong>
+            <span class="block sm:inline" id="blogInfoErrorText"></span>
+        </div>
+        
+        <div id="blogDetailsContainer" class="grid grid-cols-1 lg:grid-cols-3 gap-6" style="display: none;">
+            <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg self-start md:sticky md:top-24">
+                <img id="blogHeaderImage" src="https://placehold.co/600x200/e2e8f0/cbd5e0?text=Header" alt="Blog Header" class="w-full h-48 object-cover rounded-md mb-4 clickable-image">
+                <div class="flex items-center space-x-4 mb-4">
+                    <img id="blogAvatar" src="https://placehold.co/100x100/e2e8f0/cbd5e0?text=Avatar" alt="Blog Avatar" class="w-20 h-20 rounded-full border-2 border-indigo-500 object-cover clickable-image">
+                    <div>
+                        <h1 id="blogTitle" class="text-2xl font-bold text-slate-800">Blog Başlığı</h1>
+                        <p id="blogName" class="text-sm text-indigo-600">blog-adi</p>
+                        <p id="blogUuid" class="text-xs text-slate-400 mt-1">UUID: -</p>
+                    </div>
+                </div>
+                <div id="blogDescription" class="text-sm text-slate-700 prose-custom max-w-none mb-4">Açıklama buraya gelecek.</div>
+                
+                <div class="space-y-1 text-sm">
+                    <div class="info-block"><span class="info-label">Toplam Gönderi:</span> <span id="blogPostsCount" class="info-value">0</span></div>
+                    <div class="info-block"><span class="info-label">Beğeniler (Paylaşılıyorsa):</span> <span id="blogLikesCount" class="info-value">-</span></div>
+                    <div class="info-block"><span class="info-label">Son Güncelleme:</span> <span id="blogLastUpdated" class="info-value">-</span></div>
+                    <div class="info-block"><span class="info-label">NSFW:</span> <span id="blogIsNsfw" class="info-value">-</span></div>
+                    <div class="info-block"><span class="info-label">Soru Sorulabilir:</span> <span id="blogAsk" class="info-value">-</span></div>
+                    <div id="askDetails" style="display:none;" class="pl-4">
+                        <div class="info-block"><span class="info-label">Anonim Soru:</span> <span id="blogAskAnon" class="info-value">-</span></div>
+                        <div class="info-block"><span class="info-label">Soru Sayfası Başlığı:</span> <span id="blogAskPageTitle" class="info-value">-</span></div>
+                        <div class="info-block"><span class="info-label">Sorularda Medya:</span> <span id="blogAsksAllowMedia" class="info-value">-</span></div>
+                    </div>
+                    <div class="info-block"><span class="info-label">Beğenileri Paylaşır:</span> <span id="blogShareLikes" class="info-value">-</span></div>
+                </div>
+                
+                <h3 class="text-md font-semibold text-slate-700 mt-6 mb-2">Tema Bilgileri</h3>
+                <div class="space-y-1 text-sm">
+                    <div class="info-block"><span class="info-label">Avatar Şekli:</span> <span id="themeAvatarShape" class="info-value">-</span></div>
+                    <div class="info-block"><span class="info-label">Arkaplan Rengi:</span> <span id="themeBgColor" class="info-value inline-flex items-center">- <span id="themeBgColorSwatch" class="w-4 h-4 inline-block ml-2 border border-slate-300 rounded-sm"></span></span></div>
+                    <div class="info-block"><span class="info-label">Yazı Tipi (Body):</span> <span id="themeBodyFont" class="info-value">-</span></div>
+                    <div class="info-block"><span class="info-label">Başlık Yazı Tipi:</span> <span id="themeTitleFont" class="info-value">-</span></div>
+                    <div class="info-block"><span class="info-label">Link Rengi:</span> <span id="themeLinkColor" class="info-value inline-flex items-center">- <span id="themeLinkColorSwatch" class="w-4 h-4 inline-block ml-2 border border-slate-300 rounded-sm"></span></span></div>
+                    <div class="info-block"><span class="info-label">Header Esnetme:</span> <span id="themeHeaderStretch" class="info-value">-</span></div>
+                </div>
+
+                <a id="visitBlogLink" href="#" target="_blank" class="mt-6 inline-block w-full bg-slate-700 hover:bg-slate-800 text-white font-medium py-2.5 px-4 rounded-lg text-center transition duration-150">
+                    Tumblr Bloğuna Git
+                </a>
+            </div>
+
+            <div class="lg:col-span-2">
+                <h2 class="text-xl font-semibold text-slate-700 mb-4">Son Gönderiler (<span id="displayedPostCount">0</span>/<span id="totalPostCountHeader">0</span>)</h2>
+                <div id="blogPostsContainer" class="space-y-4">
+                    <p id="noPostsMessage" class="text-slate-500" style="display: none;">Bu blogda henüz gönderi yok veya gönderilere erişilemedi.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="imageModal" class="modal">
+        <span class="modal-close" id="modalCloseButton">&times;</span>
+        <img class="modal-content" id="modalImage" alt="Büyütülmüş Resim">
+    </div>
+
+    <script src="blog_info_viewer_client.js"></script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LikerBot Kontrol Paneli (Gelişmiş Limit Yönetimi)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="/modules/dashboard_liker_bot_client.js" defer></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; }
+        .slider-container { margin-bottom: 0.75rem; }
+        .slider-label { display: block; margin-bottom: 0.25rem; font-weight: 500; color: #4A5568; font-size: 0.8rem;}
+        .slider-value { font-weight: 600; color: #2C5282; font-size: 0.75rem; }
+        .action-log-area {
+            margin-top: 0.5rem; padding: 0.75rem; background-color: #ffffff;
+            border: 1px solid #e2e8f0; border-radius: 0.5rem;
+            min-height: 250px; max-height: 450px; overflow-y: auto;
+            white-space: pre-wrap; word-break: break-all; font-size: 0.8rem;
+            line-height: 1.5; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06);
+        }
+        .user-limits-card-item {
+            background-color: #EBF8FF; border-left: 4px solid #3182CE;
+            padding: 0.75rem; border-radius: 0.375rem;
+            transition: all 0.3s ease-in-out;
+        }
+        .user-limits-card-item:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); }
+
+        .progress-bar-bg { background-color: #E2E8F0; border-radius: 9999px; }
+        .progress-bar-fg { background-color: #4299E1; transition: width 0.3s ease-in-out; border-radius: 9999px; }
+        .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+        .status-running { background-color: #48BB78; /* green-500 */ }
+        .status-stopped { background-color: #F56565; /* red-500 */ }
+        .status-idle { background-color: #A0AEC0; /* gray-500 */ }
+        .status-limit-exceeded { background-color: #ECC94B; /* yellow-500 */ } /* Limit doldu durumu için yeni renk */
+        
+        .user-control-card {
+            transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
+            opacity: 0; transform: translateY(20px);
+        }
+        .user-control-card.visible {
+            opacity: 1; transform: translateY(0);
+        }
+        .user-control-card:hover { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); }
+        .processing-user-info-area { background-color: #F0FFF4; border: 1px solid #C6F6D5; padding: 0.75rem; border-radius: 0.375rem; }
+        .checkbox-label:hover { background-color: #f7fafc; }
+        .limit-reset-time { font-size: 0.7rem; color: #4A5568; margin-top: 2px; text-align: right;}
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-6">
+    <div class="container mx-auto max-w-full px-2 sm:px-4 lg:px-6">
+        <header class="mb-6 text-center">
+            <h1 class="text-3xl font-bold text-slate-800">LikerBot Kontrol Paneli 🤖</h1>
+            <p class="text-sm text-slate-600">Birden fazla hesap için otomatik beğeni botunu yönetin.</p>
+        </header>
+
+        <div class="mb-6 p-4 bg-white rounded-xl shadow-md">
+            <h3 class="text-lg font-semibold text-slate-700 mb-3">İşlem Yapılacak Hesapları Seçin:</h3>
+            <div id="moduleUserCheckboxesContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                <p class="text-slate-500 italic col-span-full py-4 text-center">Kullanıcılar yükleniyor...</p>
+            </div>
+        </div>
+
+        <div id="userControlCardsContainer" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
+            </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-7 gap-6 mb-6">
+            <div class="lg:col-span-5 bg-white p-4 rounded-xl shadow-md">
+                <h2 class="text-xl font-semibold text-slate-700 mb-2">İşlem Kayıtları (Log) 📝</h2>
+                <div id="actionLogArea" class="action-log-area">
+                    LikerBot modülü için log kayıtları burada görünecektir...
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 bg-white p-4 rounded-xl shadow-md">
+                <h3 class="text-lg font-semibold text-slate-700 mb-3">Kullanıcı API Limitleri 📊</h3>
+                <div id="multiUserLimitsDisplayArea" class="space-y-3 max-h-[450px] overflow-y-auto pr-2">
+                    <p class="text-slate-400 italic text-sm py-4 text-center">Limitleri görmek için kullanıcı seçin.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="userLimitDisplayTemplate" class="user-limits-card-item" style="display:none;">
+        <h4 class="text-md font-semibold text-blue-800 mb-1.5 truncate" data-template-field="username">Kullanıcı Limiti</h4>
+        <div class="grid grid-cols-1 gap-1">
+            <div>
+                <div class="flex justify-between items-center">
+                    <p class="text-xs text-blue-700">Takip: <span data-template-field="followLimitText" class="font-medium">0/0</span> (<span data-template-field="followLimitRemainingText" class="font-medium">0</span> kaldı)</p>
+                    <p class="limit-reset-time" data-template-field="followResetTimeText"></p>
+                </div>
+                <div class="progress-bar-bg h-1.5 mt-0.5"><div data-template-field="followLimitProgressBar" class="progress-bar-fg h-1.5 bg-sky-500" style="width: 0%;"></div></div>
+            </div>
+            <div>
+                <div class="flex justify-between items-center">
+                     <p class="text-xs text-blue-700">Beğeni: <span data-template-field="likeLimitText" class="font-medium">0/0</span> (<span data-template-field="likeLimitRemainingText" class="font-medium">0</span> kaldı)</p>
+                     <p class="limit-reset-time" data-template-field="likeResetTimeText"></p>
+                </div>
+                <div class="progress-bar-bg h-1.5 mt-0.5"><div data-template-field="likeLimitProgressBar" class="progress-bar-fg h-1.5 bg-teal-500" style="width: 0%;"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="userControlCardTemplate" class="bg-white p-5 rounded-xl shadow-lg user-control-card" style="display:none;">
+        <h3 class="text-lg font-bold text-indigo-700 mb-3 truncate border-b pb-2" data-template-field="cardTitleUsername">Kullanıcı Adı</h3>
+
+        <div data-template-field="currentlyProcessingUserContainer" class="processing-user-info-area mb-4" style="display:none;">
+            <div class="flex items-center space-x-3 mb-2">
+                <img data-template-field="processingUserAvatar" src="https://placehold.co/48x48/e2e8f0/cbd5e0?text=AV" alt="Avatar" class="w-12 h-12 rounded-full border-2 border-green-200 object-cover shadow-sm">
+                <div>
+                    <p class="text-md font-bold text-green-800" data-template-field="processingUserName">Blog Adı</p>
+                    <a data-template-field="processingUserUrl" href="#" target="_blank" class="text-xs text-green-600 hover:text-green-800 hover:underline">blog-url.tumblr.com</a>
+                </div>
+            </div>
+            <div class="mt-2">
+                <p class="text-xs text-gray-600">Bu Kullanıcı İçin Beğeni İlerlemesi (<span data-template-field="processingUserLikesDone" class="font-medium">0</span>/<span data-template-field="processingUserLikesTotal" class="font-medium">0</span>):</p>
+                <div class="progress-bar-bg h-2.5 rounded-full mt-1 bg-gray-200">
+                    <div data-template-field="processingUserLikeProgressBar" class="progress-bar-fg h-2.5 rounded-full bg-green-500" style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div data-template-field="botControlsAndSettings">
+            <div class="grid grid-cols-1 gap-y-3 mb-4">
+                <div class="slider-container">
+                    <label class="slider-label">Kullanıcı Başına Beğenilecek Gönderi Sayısı:</label>
+                    <input type="range" data-template-field="postsToLikeSlider" min="1" max="20" value="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <span class="slider-value ml-1"><span data-template-field="postsToLikeValue">5</span> gönderi</span>
+                </div>
+                <div class="slider-container">
+                    <label class="slider-label">Panel Yenileme Aralığı:</label>
+                    <input type="range" data-template-field="refreshIntervalSlider" min="0" max="4" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <span class="slider-value ml-1"><span data-template-field="refreshIntervalValue">1 Dakika</span></span>
+                </div>
+            </div>
+            <div class="flex items-center justify-center gap-3 mb-2">
+                <button data-template-field="startButton" class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md text-sm shadow-sm hover:shadow-md transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block mr-1 -mt-0.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>
+                    Başlat
+                </button>
+                <button data-template-field="stopButton" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md text-sm shadow-sm hover:shadow-md transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-400" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block mr-1 -mt-0.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" /></svg>
+                    Durdur
+                </button>
+            </div>
+            <div class="text-center text-xs text-gray-500">
+                Durum: <span data-template-field="botStatusIndicator" class="status-indicator status-idle"></span><strong data-template-field="botStatusText" class="font-medium">Beklemede</strong>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
