@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const likeLimitProgressBar = document.getElementById('likeLimitProgressBar');
     const likeResetText = document.getElementById('likeResetText');
 
-    // Step 1 (Yeni)
+    // Step 1
     const step1Container = document.getElementById('step1Container');
     const postUrlInput = document.getElementById('postUrlInput');
     const addPostUrlsButton = document.getElementById('addPostUrlsButton');
@@ -53,14 +53,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const followAndLikeButton = document.getElementById('followAndLikeButton');
     const followedCountSpan = document.getElementById('followedCount');
     const likedPostsCountStep3Span = document.getElementById('likedPostsCountStep3');
-    // YENİ EKLENEN BUTON DEĞİŞKENİ
+    
+    // Avatar tarama elementleri
     const removeDefaultAvatarUsersButton = document.getElementById('removeDefaultAvatarUsersButton');
+    const avatarScanProgressContainer = document.getElementById('avatarScanProgressContainer');
+    const avatarScanProgressBar = document.getElementById('avatarScanProgressBar');
+    const avatarScanProgressText = document.getElementById('avatarScanProgressText');
 
     const actionLogArea = document.getElementById('actionLogArea');
 
     // --- Durum Değişkenleri ---
     let selectedAppUsernameForModule = null;
-    let addedPostUrlsMap = new Map(); // url -> { blogIdentifier, postId, status, notesCount, error }
+    let addedPostUrlsMap = new Map(); 
     let allBlogNamesFromNotes = new Set();
     
     let potentialFollowTargets = new Map(); 
@@ -205,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (fullReset && userLimitsContainer) userLimitsContainer.style.display = 'none';
         
         addedPostUrlsMap.clear();
-        allBlogNamesFromNotes.clear(); // Temizlik burada yapılıyor
+        allBlogNamesFromNotes.clear(); 
         if(addedUrlsListContainer) addedUrlsListContainer.innerHTML = '';
         if(noUrlsAddedMessage) noUrlsAddedMessage.style.display = 'block';
         if(totalNotesFoundCountSpan) totalNotesFoundCountSpan.textContent = "Toplam Benzersiz Blog Bulundu (Notlardan): 0";
@@ -234,6 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(followedCountSpan) followedCountSpan.textContent = '0';
         if(likedPostsCountStep3Span) likedPostsCountStep3Span.textContent = '0';
         if(step3Container) step3Container.style.display = 'none';
+        if(avatarScanProgressContainer) avatarScanProgressContainer.style.display = 'none';
 
         isProcessingStep = false;
         if (findSuggestedUsersButton) findSuggestedUsersButton.disabled = true;
@@ -271,15 +276,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
             let blogIdentifier, postId;
 
-            // blogismi.tumblr.com formatı
             if (urlObj.hostname.endsWith('.tumblr.com') && urlObj.hostname.split('.').length > 2 && urlObj.hostname.split('.')[0] !== 'www') {
                 blogIdentifier = urlObj.hostname.split('.')[0];
-                // /post/12345 veya /12345 formatları
                 if (pathParts.length >= 2 && pathParts[0] === 'post') {
                     postId = pathParts[1];
                 } else if (pathParts.length >= 1 && /^\d+$/.test(pathParts[0])) {
                     postId = pathParts[0];
-                } else if (pathParts.length >=1 ) { // /username/postname-then-id/123213 gibi durumlar için sondaki ID'yi ara
+                } else if (pathParts.length >=1 ) { 
                      for(let i = pathParts.length -1; i>=0; i--){
                         if(/^\d+$/.test(pathParts[i])) {
                             postId = pathParts[i];
@@ -288,13 +291,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             } 
-            // www.tumblr.com/blogismi formatı
             else if (urlObj.hostname === 'www.tumblr.com') {
-                if (pathParts.length >= 2) { // En az /blogismi/postid olmalı
+                if (pathParts.length >= 2) { 
                     blogIdentifier = pathParts[0];
                     if (pathParts[1] === 'post' && pathParts.length >= 3) {
                         postId = pathParts[2];
-                    } else { // /blogismi/postid veya /blogismi/postid/slug
+                    } else { 
                         postId = pathParts[1];
                     }
                 }
@@ -332,8 +334,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if(noUrlsAddedMessage) noUrlsAddedMessage.style.display = 'none';
         if(goToStep2Button) goToStep2Button.style.display = 'none';
         updateProgressBar(step1ProgressBar, 0);
-        
-        // `allBlogNamesFromNotes` burada temizlenmeyecek. `resetModuleState` içinde temizleniyor.
 
         let processedUrlCount = 0;
         const totalUrlsToProcess = urls.length;
@@ -489,14 +489,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     let isSelectable = true;
                     let frameColorClass = '';
 
-                    // DEĞİŞTİRİLDİ: Takip etme durumuna göre 'isSelectable' durumu ayarlandı.
-                    if (blog.is_following_me === true && blog.am_i_following_them === false) { // Beni takip ediyor, ben etmiyorum (Yeşil)
+                    if (blog.is_following_me === true && blog.am_i_following_them === false) { 
                         frameColorClass = 'frame-green';
-                        isSelectable = false; // Bu kişiler de artık seçilemez.
-                    } else if (blog.is_following_me === false && blog.am_i_following_them === true) { // Ben takip ediyorum, o etmiyor (Kırmızı)
+                        isSelectable = false; 
+                    } else if (blog.is_following_me === false && blog.am_i_following_them === true) { 
                         frameColorClass = 'frame-red';
                         isSelectable = false;
-                    } else if (blog.is_following_me === true && blog.am_i_following_them === true) { // Karşılıklı takip (Mavi)
+                    } else if (blog.is_following_me === true && blog.am_i_following_them === true) { 
                         frameColorClass = 'frame-blue';
                         isSelectable = false;
                     }
@@ -637,7 +636,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // DEĞİŞTİRİLDİ: Yeni butonu da kontrol edecek şekilde güncellendi.
     function updateFollowAndLikeButtonState() {
         const selectableUserCount = Array.from(potentialFollowTargets.values()).filter(u => u.isSelectable && selectedUsersToProcessFromStep2.has(u.name)).length;
         
@@ -648,7 +646,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 "Takip Edilecek Seçili Blog Yok";
         }
         
-        // YENİ EKLEME: Avatar temizleme butonunun durumunu yönetir.
         if (removeDefaultAvatarUsersButton) {
             removeDefaultAvatarUsersButton.disabled = selectableUserCount === 0;
         }
@@ -681,13 +678,12 @@ document.addEventListener('DOMContentLoaded', () => {
         isProcessingStep = true;
         logAction(`Adım 3: ${usersToActuallyProcess.length} blog için takip/beğeni işlemi başlıyor...`, "info");
         if(followAndLikeButton) followAndLikeButton.disabled = true;
-        if(removeDefaultAvatarUsersButton) removeDefaultAvatarUsersButton.disabled = true; // YENİ EKLEME
+        if(removeDefaultAvatarUsersButton) removeDefaultAvatarUsersButton.disabled = true; 
         if(step3ProgressBar) updateProgressBar(step3ProgressBar, 0);
 
         let totalFollowed = 0, totalLikedPostsOverall = 0, processedUserCountOuter = 0;
         const likesPerUserCountTarget = parseInt(likesPerUserSliderInput.value);
         const concurrencyLimitLikes = 3; 
-
 
         for (const userBlog of usersToActuallyProcess) {
             if (!isProcessingStep) {
@@ -822,65 +818,82 @@ document.addEventListener('DOMContentLoaded', () => {
         
         renderSuggestedUsers(); 
         if(followAndLikeButton) followAndLikeButton.disabled = false;
-        if(removeDefaultAvatarUsersButton) removeDefaultAvatarUsersButton.disabled = false; // YENİ EKLEME
+        if(removeDefaultAvatarUsersButton) removeDefaultAvatarUsersButton.disabled = false; 
     }
 
-    // YENİ EKLENDİ: Varsayılan avatarlı kullanıcıları seçimden kaldırma fonksiyonu
-    /**
-     * Seçili kullanıcılar arasından varsayılan Tumblr avatarını kullananları tespit eder ve seçimden kaldırır.
-     * Bu işlem, Adım 2'de çekilen avatar URL'lerini kontrol ettiği için yeni bir ağ isteği yapmaz.
-     */
+    // GÜNCELLENDİ: `inactive_unfollower` scriptindeki worker havuzu mantığı buraya uyarlandı
     async function handleRemoveDefaultAvatarUsers() {
         if (isProcessingStep) {
             logAction("Zaten bir işlem devam ediyor, lütfen bekleyin.", "warn");
             return;
         }
-        const selectedUsersArray = Array.from(selectedUsersToProcessFromStep2);
-        if (selectedUsersArray.length === 0) {
+        const selectedBlogNames = Array.from(selectedUsersToProcessFromStep2);
+        if (selectedBlogNames.length === 0) {
             logAction("Varsayılan avatar kontrolü için önce blog seçmelisiniz.", "warn");
             return;
         }
 
         isProcessingStep = true;
         removeDefaultAvatarUsersButton.disabled = true;
-        logAction(`Seçili ${selectedUsersArray.length} blog arasında varsayılan avatar kontrolü başlatıldı...`, "info");
+        if (followAndLikeButton) followAndLikeButton.disabled = true;
+        if (avatarScanProgressContainer) avatarScanProgressContainer.style.display = 'block';
+        if (avatarScanProgressBar) updateProgressBar(avatarScanProgressBar, 0);
+        logAction(`Seçili ${selectedBlogNames.length} blog arasında varsayılan avatar kontrolü başlatıldı (20 paralel işçi)...`, "system");
         
-        await delay(100); // Arayüzün güncellenmesi için küçük bir gecikme
+        const taskQueue = [...selectedBlogNames];
+        const totalToScan = taskQueue.length;
+        let processedCount = 0;
+        let deselectedCount = 0;
+        const avatarWorkerCount = 20;
 
-        const usersToDeselect = [];
-        const defaultAvatarSignature = 'assets.tumblr.com/images/default_avatar/';
+        const worker = async (workerId) => {
+            while(taskQueue.length > 0) {
+                if(!isProcessingStep) break;
 
-        for (const blogName of selectedUsersArray) {
-            const userData = potentialFollowTargets.get(blogName);
-            if (userData && userData.avatar && userData.avatar.includes(defaultAvatarSignature)) {
-                usersToDeselect.push(blogName);
-            }
-        }
+                const blogName = taskQueue.shift();
+                if (!blogName) continue;
+                
+                logAction(`İşçi #${workerId}, '${blogName}' avatarını kontrol ediyor...`, 'debug');
 
-        if (usersToDeselect.length > 0) {
-            logAction(`${usersToDeselect.length} blog varsayılan avatar kullandığı için seçimden kaldırılıyor...`, "system_success");
-            usersToDeselect.forEach(blogName => {
-                // 1. Ana seçim set'inden kaldır
-                selectedUsersToProcessFromStep2.delete(blogName);
-
-                // 2. Arayüzdeki checkbox'ı bul ve işaretini kaldır
-                const checkbox = suggestedUsersList.querySelector(`.user-select-checkbox[data-blog-name="${blogName}"]`);
-                if (checkbox) {
-                    checkbox.checked = false;
-                    // Görsel stili de güncellemek için parent elementten class'ı kaldır
-                    checkbox.closest('.suggested-user-item')?.classList.remove('selected-for-action');
+                try {
+                    const response = await fetch(`https://api.tumblr.com/v2/blog/${blogName}/avatar/64`);
+                    if (response.url && response.url.includes("assets.tumblr.com/images/default_avatar/")) {
+                        deselectedCount++;
+                        logAction(`'${blogName}' varsayılan avatar kullanıyor. Seçimden kaldırılıyor.`, "info");
+                        
+                        selectedUsersToProcessFromStep2.delete(blogName);
+                        const checkbox = suggestedUsersList.querySelector(`.user-select-checkbox[data-blog-name="${blogName}"]`);
+                        if (checkbox) {
+                            checkbox.checked = false;
+                            checkbox.closest('.suggested-user-item')?.classList.remove('selected-for-action');
+                        }
+                    }
+                } catch (error) {
+                    logAction(`Avatar tarama hatası (${blogName}): ${error.message}`, 'debug');
+                } finally {
+                    processedCount++;
+                    if(avatarScanProgressBar) updateProgressBar(avatarScanProgressBar, (processedCount / totalToScan) * 100);
+                    if(avatarScanProgressText) avatarScanProgressText.textContent = `${processedCount}/${totalToScan}`;
+                    await delay(500); // Her işçi her istekten sonra 0.5 saniye bekler
                 }
-            });
-        } else {
-            logAction("Seçili bloglar arasında varsayılan avatar kullanan bulunamadı.", "info");
+            }
+        };
+
+        const workers = [];
+        for (let i = 0; i < avatarWorkerCount; i++) {
+            workers.push(worker(i + 1));
         }
 
-        // Ana işlem butonunun durumunu güncelle
+        await Promise.all(workers);
+
+        logAction(`Avatar tarama tamamlandı. ${deselectedCount} blog varsayılan avatar kullandığı için seçimden kaldırıldı.`, "system_success");
         updateFollowAndLikeButtonState();
 
         isProcessingStep = false;
         removeDefaultAvatarUsersButton.disabled = (selectedUsersToProcessFromStep2.size === 0);
+        if (avatarScanProgressContainer) setTimeout(() => { avatarScanProgressContainer.style.display = 'none'; }, 2000);
     }
+
 
     function updateLastActiveFilterDisplay() { 
         if (!lastActiveFilterInput || !lastActiveFilterValueSpan) return;
@@ -908,7 +921,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     if (followAndLikeButton) followAndLikeButton.addEventListener('click', followAndLikeSelectedTargets);
 
-    // YENİ EKLENDİ: Yeni buton için olay dinleyici
     if (removeDefaultAvatarUsersButton) {
         removeDefaultAvatarUsersButton.addEventListener('click', handleRemoveDefaultAvatarUsers);
     }

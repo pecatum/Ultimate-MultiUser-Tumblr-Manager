@@ -251,12 +251,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     } catch (error) {
                         if (error.isRateLimitError && !pauseState.paused) {
                             pauseState.paused = true;
-                            logAction(`API Limiti Aşıldı. Tüm işçiler 20 saniye duraklatılıyor...`, 'warn');
+                            logAction(`API Limiti Aşıldı. Tüm işçiler 60 saniye duraklatılıyor...`, 'warn');
                             taskQueue.unshift(task); 
                             setTimeout(() => {
                                 logAction('Duraklatma bitti. İşçiler devam ediyor...', 'info');
                                 pauseState.paused = false;
-                            }, 20000);
+                            }, 60000);
                         } else if (!error.isRateLimitError) {
                              logAction(`Görev başarısız (offset ${task.offset}): ${error.message}`, 'error');
                              taskQueue.push(task); 
