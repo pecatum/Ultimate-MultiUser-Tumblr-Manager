@@ -251,12 +251,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     } catch (error) {
                         if (error.isRateLimitError && !pauseState.paused) {
                             pauseState.paused = true;
-                            logAction(`API Limiti Aşıldı. Tüm işçiler 60 saniye duraklatılıyor...`, 'warn');
+                            logAction(`API Limiti Aşıldı. Tüm işçiler 100 saniye duraklatılıyor...`, 'warn');
                             taskQueue.unshift(task); 
                             setTimeout(() => {
                                 logAction('Duraklatma bitti. İşçiler devam ediyor...', 'info');
                                 pauseState.paused = false;
-                            }, 60000);
+                            }, 100000);
                         } else if (!error.isRateLimitError) {
                              logAction(`Görev başarısız (offset ${task.offset}): ${error.message}`, 'error');
                              taskQueue.push(task); 
@@ -267,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         processedTasks++;
                         updateProgressBar(followingLoadProgressBar, (processedTasks / totalTasks) * 100);
                         followingLoadProgressText.textContent = `${processedTasks}/${totalTasks} paket`;
-                        await delay(1000); 
+                        await delay(20000); 
                     }
                 }
             };
@@ -590,7 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!continueProcessing) break;
 
                 if (pauseState.paused) {
-                    await delay(1000);
+                    await delay(2000);
                     continue;
                 }
 
@@ -617,12 +617,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (error) {
                     if (error.isRateLimitError && !pauseState.paused) {
                         pauseState.paused = true;
-                        logAction(`API Limiti Aşıldı. Takipten çıkarma 10 saniye duraklatılıyor...`, 'warn');
+                        logAction(`API Limiti Aşıldı. Takipten çıkarma 100 saniye duraklatılıyor...`, 'warn');
                         taskQueue.unshift(blogNameToUnfollow); 
                         setTimeout(() => {
                             logAction('Duraklatma bitti. İşçiler devam ediyor...', 'info');
                             pauseState.paused = false;
-                        }, 10000);
+                        }, 100000);
                     } else if (!error.isRateLimitError) {
                         failedCount++;
                         logAction(`'${blogNameToUnfollow}' takipten çıkarılırken hata: ${error.message}`, "error");
