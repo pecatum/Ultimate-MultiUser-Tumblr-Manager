@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const lastActiveDaysFilterInput = document.getElementById('lastActiveDaysFilter');
     const lastActiveDaysValueSpan = document.getElementById('lastActiveDaysValue');
     const scanForDefaultAvatarsButton = document.getElementById('scanForDefaultAvatarsButton');
+    const selectAllBlogsForUnfollowButton = document.getElementById('selectAllBlogsForUnfollowButton'); // YENİ BUTON TANIMLAMASI
     const avatarScanProgressContainer = document.getElementById('avatarScanProgressContainer');
     const avatarScanProgressBar = document.getElementById('avatarScanProgressBar');
     const avatarScanProgressText = document.getElementById('avatarScanProgressText');
@@ -36,8 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Durum Değişkenleri ---
     let selectedAppUsernameForModule = null;
-    let allFollowedBlogsData = [];
-    let fetchedBlogNames = new Set(); // Çift eklemeyi önlemek için
+    let allFollowedBlogsData = []; //
+    let fetchedBlogNames = new Set();
     let displayedBlogItems = new Map();
     let selectedBlogsToUnfollow = new Set(); 
     
@@ -54,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentDetailedBlogName = null; 
 
     // --- Yardımcı Fonksiyonlar ---
-    function logAction(message, type = 'info') {
+    function logAction(message, type = 'info') { //
         if (!actionLogArea) return;
         const now = new Date();
         const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
@@ -177,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(totalSelectedForUnfollowDisplaySpan) totalSelectedForUnfollowDisplaySpan.textContent = '0';
         if(avatarScanProgressContainer) avatarScanProgressContainer.style.display = 'none';
         if(scanForDefaultAvatarsButton) scanForDefaultAvatarsButton.disabled = true;
+        if(selectAllBlogsForUnfollowButton) selectAllBlogsForUnfollowButton.disabled = true; // YENİ BUTON RESETLEME
     }
     
     async function fetchAllFollowedBlogsData() {
@@ -189,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (followingLoadProgressBar) updateProgressBar(followingLoadProgressBar, 0);
         if (followingListContainer.firstChild?.tagName === 'P') followingListContainer.innerHTML = '';
         if (paginationContainer) paginationContainer.innerHTML = '';
-        logAction(`Takip edilenler çekiliyor (7 paralel işçi)...`, 'info');
+        logAction(`Takip edilenler çekiliyor (10 paralel işçi)...`, 'info');
 
         try {
             const initialData = await executeApiActionForModule('getUserFollowing', { limit: 1, offset: 0 });
@@ -203,35 +205,43 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             totalFollowingCountSpan.textContent = totalBlogsUserFollows.toLocaleString();
-            if(scanForDefaultAvatarsButton) scanForDefaultAvatarsButton.disabled = false;
-
-            const tasks = [];
-            for (let offset = 0; offset < totalBlogsUserFollows; offset += blogsPerApiBatch) {
-                tasks.push({ limit: blogsPerApiBatch, offset: offset });
-            }
-            const totalTasks = tasks.length;
-            if (followingLoadProgressText) followingLoadProgressText.textContent = `0/${totalTasks} paket`;
+            if (scanForDefaultAvatarsButton) scanForDefaultAvatarsButton.disabled = false;
+            if (selectAllBlogsForUnfollowButton) selectAllBlogsForUnfollowButton.disabled = false; // YENİ BUTONU AKTİFLEŞTİR
+            if (followingLoadProgressText) followingLoadProgressText.textContent = `0/${totalBlogsUserFollows.toLocaleString()}`;
             
-            const taskQueue = [...tasks];
-            let processedTasks = 0;
+            const fetchWorkerCount = 10;
+            const taskQueue = [];
+            const blogsPerWorker = Math.ceil(totalBlogsUserFollows / fetchWorkerCount);
+
+            for (let i = 0; i < fetchWorkerCount; i++) {
+                const startOffset = i * blogsPerWorker;
+                if (startOffset < totalBlogsUserFollows) {
+                    taskQueue.push({
+                        initialOffset: startOffset,
+                        quotaEndOffset: startOffset + blogsPerWorker,
+                    });
+                }
+            }
+            
             let pauseState = { paused: false };
 
             const worker = async (workerId) => {
-                while (taskQueue.length > 0) {
-                    if (!continueProcessing) break;
-                    
+                let task = taskQueue.shift();
+                if (!task) return; 
+
+                let currentOffset = task.initialOffset;
+
+                while (currentOffset !== null && currentOffset < task.quotaEndOffset && continueProcessing) {
                     if (pauseState.paused) {
-                        await delay(1000); 
+                        await delay(1000);
                         continue;
                     }
 
-                    const task = taskQueue.shift();
-                    if (!task) continue;
-
-                    logAction(`İşçi #${workerId}, offset ${task.offset} görevini aldı...`, 'debug');
-
+                    logAction(`İşçi #${workerId}, offset ${currentOffset} görevini aldı...`, 'debug');
+                    
                     try {
-                        const data = await executeApiActionForModule('getUserFollowing', task);
+                        const data = await executeApiActionForModule('getUserFollowing', { limit: blogsPerApiBatch, offset: currentOffset });
+                        
                         if (data && data.blogs) {
                             const newlyFetchedBlogs = [];
                             data.blogs.forEach(blog => {
@@ -248,31 +258,33 @@ document.addEventListener('DOMContentLoaded', () => {
                                 }
                             }
                         }
+
+                        if (data && data._links && data._links.next && data._links.next.query_params && data._links.next.query_params.offset) {
+                            currentOffset = parseInt(data._links.next.query_params.offset, 10);
+                        } else {
+                            currentOffset = null; 
+                        }
+
                     } catch (error) {
                         if (error.isRateLimitError && !pauseState.paused) {
                             pauseState.paused = true;
                             logAction(`API Limiti Aşıldı. Tüm işçiler 100 saniye duraklatılıyor...`, 'warn');
-                            taskQueue.unshift(task); 
                             setTimeout(() => {
                                 logAction('Duraklatma bitti. İşçiler devam ediyor...', 'info');
                                 pauseState.paused = false;
                             }, 100000);
                         } else if (!error.isRateLimitError) {
-                             logAction(`Görev başarısız (offset ${task.offset}): ${error.message}`, 'error');
-                             taskQueue.push(task); 
-                        } else if (error.isRateLimitError && pauseState.paused) {
-                           taskQueue.unshift(task);
+                             logAction(`Görev başarısız (offset ${currentOffset}): ${error.message}. Tekrar denenecek.`, 'error');
                         }
+                        await delay(5000); 
                     } finally {
-                        processedTasks++;
-                        updateProgressBar(followingLoadProgressBar, (processedTasks / totalTasks) * 100);
-                        followingLoadProgressText.textContent = `${processedTasks}/${totalTasks} paket`;
-                        await delay(20000); 
+                        updateProgressBar(followingLoadProgressBar, (allFollowedBlogsData.length / totalBlogsUserFollows) * 100);
+                        followingLoadProgressText.textContent = `${allFollowedBlogsData.length.toLocaleString()}/${totalBlogsUserFollows.toLocaleString()}`;
+                        await delay(1500); 
                     }
                 }
             };
             
-            const fetchWorkerCount = 7;
             const workers = [];
             for (let i = 0; i < fetchWorkerCount; i++) {
                 workers.push(worker(i + 1));
@@ -321,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let processedCount = 0;
         let foundCount = 0;
         
-        const avatarWorkerCount = 50; // Worker sayısı 50'ye çıkarıldı
+        const avatarWorkerCount = 50; 
 
         const worker = async (workerId) => {
             while (taskQueue.length > 0) {
@@ -464,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    function handleBlogSelection(blogName, isSelected) {
+    function handleBlogSelection(blogName, isSelected) { //
         if (isSelected) {
             selectedBlogsToUnfollow.add(blogName);
         } else {
@@ -480,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSelectedToUnfollowCount();
     }
 
-    function updateSelectedToUnfollowCount() {
+    function updateSelectedToUnfollowCount() { //
         const count = selectedBlogsToUnfollow.size;
         if (selectedToUnfollowCountSpan) selectedToUnfollowCountSpan.textContent = count;
         if (unfollowSelectedButton) unfollowSelectedButton.disabled = count === 0;
@@ -493,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function applyLastActiveFilter() {
+    function applyLastActiveFilter() { //
         const daysThreshold = parseInt(lastActiveDaysFilterInput.value);
         const now = Date.now();
         selectedBlogsToUnfollow.clear();
@@ -565,7 +577,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // GÜNCELLENDİ: Takipten çıkarma işlemi de worker havuzu mantığına geçirildi
     async function processUnfollowQueue() {
         if (selectedBlogsToUnfollow.size === 0) {
             logAction("Takipten çıkarılacak blog seçilmedi.", "warn");
@@ -609,7 +620,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const itemElement = displayedBlogItems.get(blogNameToUnfollow);
                     if(itemElement) itemElement.remove();
                     
-                    // Ana veri setlerinden de çıkar
                     allFollowedBlogsData = allFollowedBlogsData.filter(b => b.name !== blogNameToUnfollow);
                     displayedBlogItems.delete(blogNameToUnfollow);
                     selectedBlogsToUnfollow.delete(blogNameToUnfollow);
@@ -633,7 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     processedCount = succeededCount + failedCount;
                     if(unfollowedCountSpan) unfollowedCountSpan.textContent = succeededCount;
                     if (unfollowProgressBarEl) updateProgressBar(unfollowProgressBarEl, (processedCount / totalToProcess) * 100);
-                    await delay(1000); // Her işçi her işlemden sonra 1 saniye bekler
+                    await delay(1000); 
                 }
             }
         };
@@ -683,6 +693,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if(scanForDefaultAvatarsButton) scanForDefaultAvatarsButton.addEventListener('click', scanAndSelectDefaultAvatars);
+
+    // YENİ BUTON İÇİN EVENT LISTENER
+    if (selectAllBlogsForUnfollowButton) {
+        selectAllBlogsForUnfollowButton.addEventListener('click', () => {
+            if (allFollowedBlogsData.length === 0) {
+                logAction("Tümünü seçmek için önce blog listesinin yüklenmesi gerekir.", "warn");
+                return;
+            }
+
+            logAction(`Takip edilen ${allFollowedBlogsData.length} blog'un tümü seçiliyor...`, 'info');
+            
+            // Tüm blogları seçili hale getir
+            allFollowedBlogsData.forEach(blog => {
+                selectedBlogsToUnfollow.add(blog.name);
+            });
+
+            // Görünen listedeki elemanların stillerini güncelle
+            displayedBlogItems.forEach((element, blogName) => {
+                element.classList.add('selected');
+                const checkbox = element.querySelector('.blog-select-checkbox');
+                if (checkbox) checkbox.checked = true;
+            });
+
+            // Seçilen sayısını güncelle
+            updateSelectedToUnfollowCount();
+            logAction(`Tüm bloglar takipten çıkmak için seçildi.`, 'system_success');
+        });
+    }
 
     if (selectAllFollowingButton) {
         selectAllFollowingButton.addEventListener('click', () => {
