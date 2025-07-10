@@ -176,8 +176,9 @@
                         <div>
                             <label for="lastActiveFilter" class="block text-sm font-medium text-gray-700">Son Aktiflik Filtresi:</label>
                             <div class="flex items-center space-x-3 mt-1">
-                                <input type="range" id="lastActiveFilter" min="0" value="4" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
-                                <span id="lastActiveFilterValue" class="text-sm text-gray-600 w-28 text-right min-w-[6rem]">Son 1 Hafta</span>
+                                <!-- Not: Bu slider'ın max ve value değerleri JS tarafından dinamik olarak ayarlanır -->
+                                <input type="range" id="lastActiveFilter" min="0" value="12" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
+                                <span id="lastActiveFilterValue" class="text-sm text-gray-600 w-28 text-right min-w-[6rem]">Son 6 Saat</span>
                             </div>
                         </div>
                     </div>
@@ -226,6 +227,7 @@
              <div id="actionLogArea" class="log-console custom-scroll">Modül hazır.</div>
         </footer>
     </div>
-    <script src="/modules/follow_suggester_client.js"></script> 
+    <!-- Script dosyasını çağırma -->
+    <script src="follow_suggester_client.js"></script> 
 </body>
 </html>

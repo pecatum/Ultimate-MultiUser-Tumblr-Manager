@@ -62,16 +62,59 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentDetailedUser = null;
     let continueFetchingDashboard = false;
 
-    const LAST_ACTIVE_SLIDER_VALUES = [
-        { value: 0, label: "Limitsiz" }, { value: 0.25, label: "Son 6 Saat" },
-        { value: 1, label: "Son 1 Gün" }, { value: 3, label: "Son 3 Gün" },
-        { value: 7, label: "Son 1 Hafta" }, { value: 14, label: "Son 2 Hafta" },
-        { value: 30, label: "Son 1 Ay" }
-    ];
-    if (lastActiveFilterInput) {
-        lastActiveFilterInput.max = LAST_ACTIVE_SLIDER_VALUES.length - 1;
-        lastActiveFilterInput.value = LAST_ACTIVE_SLIDER_VALUES.findIndex(v => v.value === 7) || 4;
+    // =================================================================
+    // DEĞİŞİKLİK BAŞLANGICI: İsteğiniz doğrultusunda bu bölüm güncellendi.
+    // =================================================================
+
+    /**
+     * "Son Aktiflik Filtresi" için zaman adımlarını dinamik olarak oluşturur.
+     * Bu fonksiyon, 2 günlük (48 saat) bir zaman aralığını 30 dakikalık adımlarla oluşturur.
+     * @returns {Array<Object>} Slider için değer ve etiketleri içeren bir dizi.
+     */
+    function generateTimeSteps() {
+        const steps = [];
+        steps.push({ value: 0, label: "Limitsiz" }); // "Limitsiz" seçeneği
+
+        // 48 saatlik aralık için 30 dakikalık hassasiyetle 96 adım oluştur
+        for (let i = 1; i <= 96; i++) {
+            const totalMinutes = i * 30;
+            const totalHours = totalMinutes / 60;
+            const days = totalMinutes / (60 * 24); // Filtreleme mantığı gün cinsinden çalışıyor
+
+            let label = "";
+            if (totalMinutes < 60) {
+                label = `Son ${totalMinutes} Dakika`;
+            } else if (totalHours === 1) {
+                label = `Son 1 Saat`;
+            } else if (totalHours === 24) {
+                label = "Son 1 Gün";
+            } else if (totalHours === 48) {
+                label = "Son 2 Gün";
+            } else if (totalHours % 1 === 0) {
+                label = `Son ${totalHours} Saat`;
+            } else {
+                // "1.5 Saat" gibi ondalıklı gösterimler için
+                label = `Son ${parseFloat(totalHours.toFixed(1))} Saat`;
+            }
+            steps.push({ value: days, label: label });
+        }
+        return steps;
     }
+
+    // Eskiden statik olan bu dizi, şimdi dinamik olarak oluşturuluyor.
+    const LAST_ACTIVE_SLIDER_VALUES = generateTimeSteps();
+
+    if (lastActiveFilterInput) {
+        // Slider'ın maksimum değerini yeni adım sayısına göre ayarla
+        lastActiveFilterInput.max = LAST_ACTIVE_SLIDER_VALUES.length - 1;
+        // Varsayılan değeri "Son 6 Saat" olarak ayarla (bu, 12. adıma denk geliyor)
+        lastActiveFilterInput.value = 12;
+    }
+
+    // =================================================================
+    // DEĞİŞİKLİK SONU
+    // =================================================================
+
 
     // --- Yardımcı Fonksiyonlar ---
     function logAction(message, type = 'info') {
@@ -219,10 +262,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if(suggestedUsersList) suggestedUsersList.innerHTML = '<p class="text-slate-400 italic p-4 text-center">Bloglar Adım 2\'de burada listelenecek.</p>';
         if(selectedUserDetailsPanel) selectedUserDetailsPanel.style.display = 'none'; currentDetailedUser = null;
         if(step2ProgressBar) updateProgressBar(step2ProgressBar, 0);
+        
+        // DEĞİŞİKLİK: Modül sıfırlandığında slider'ı varsayılan değere (6 saat) ayarla.
         if (lastActiveFilterInput) {
-             lastActiveFilterInput.value = LAST_ACTIVE_SLIDER_VALUES.findIndex(v => v.value === 7) || 4;
+             lastActiveFilterInput.value = 12; 
         }
         updateLastActiveFilterDisplay();
+
         if(goToStep3Button) goToStep3Button.style.display = 'none';
         if(selectAllStep2UsersButton) selectAllStep2UsersButton.style.display = 'none';
         if(step2Container) step2Container.style.display = 'none';
@@ -539,7 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(selectAllStep1PostsButton) selectAllStep1PostsButton.disabled = false;
     }
 
-    // --- Adım 2: GÜNCELLENMİŞ MANTIK ---
+    // --- Adım 2 Fonksiyonları ---
     async function findAndFilterPotentialTargets() {
         if (selectedDashboardPostsData.length === 0) { logAction("Adım 1'den gönderi seçin.", "warn"); return;}
         if (isProcessingStep) { logAction("Zaten bir işlem devam ediyor.", "warn"); return; }
@@ -556,8 +602,6 @@ document.addEventListener('DOMContentLoaded', () => {
         allBlogNamesFromNotes.clear();
 
         // 1. Notları Topla
-        let processedPostCount = 0;
-        const totalPostsToProcess = selectedDashboardPostsData.length;
         const concurrencyLimitNotes = 5;
 
         const fetchNotesTask = async (post) => {
@@ -696,7 +740,7 @@ document.addEventListener('DOMContentLoaded', () => {
                        data-blog-name="${user.name}" 
                        ${selectedUsersToProcessFromStep2.has(user.name) ? 'checked' : ''}
                        ${!user.isSelectable ? 'disabled' : ''}>
-                <img src="${user.avatar}" alt="${user.name} avatar" class="user-avatar flex-shrink-0">
+                <img src="${user.avatar}" alt="${user.name} avatar" class="user-avatar flex-shrink-0" onerror="this.onerror=null;this.src='https://placehold.co/80x80/e2e8f0/707070?text=?';">
                 <div class="ml-2 overflow-hidden flex-grow">
                     <p class="text-sm font-semibold text-slate-800 truncate" title="${user.title ? user.title.replace(/"/g, '&quot;') : ''}">${user.title || user.name}</p>
                     <p class="text-xs text-indigo-500 truncate">${user.name}</p>
@@ -767,7 +811,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Adım 3: GÜNCELLENMİŞ MANTIK ---
+    // --- Adım 3 Fonksiyonları ---
     async function handleRemoveDefaultAvatarUsers() {
         if (isProcessingStep) { logAction("Zaten bir işlem devam ediyor.", "warn"); return; }
         
@@ -785,6 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const workerTask = async (blogName) => {
             try {
+                // API üzerinden avatar URL'sini çekmek yerine doğrudan fetch ile kontrol ediyoruz, çünkü bu daha hızlı olabilir.
                 const response = await fetch(`https://api.tumblr.com/v2/blog/${blogName}/avatar/64`);
                 if (response.url && response.url.includes("assets.tumblr.com/images/default_avatar/")) {
                     deselectedCount++;
