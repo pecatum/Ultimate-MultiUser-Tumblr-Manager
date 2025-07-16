@@ -50,6 +50,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const avatarScanProgressBar = document.getElementById('avatarScanProgressBar');
     const avatarScanProgressText = document.getElementById('avatarScanProgressText');
     const selectTurkishPostsButton = document.getElementById('selectTurkishPostsButton');
+    const sourceDashboardRadio = document.getElementById('sourceDashboardRadio');
+    const sourceTagRadio = document.getElementById('sourceTagRadio');
+    const tagInputContainer = document.getElementById('tagInputContainer');
+    const tagInputField = document.getElementById('tagInputField');
+    const sortRecentRadio = document.getElementById('sortRecentRadio');
+    const sortTopRadio = document.getElementById('sortTopRadio');
+    const minNoteCountSelect = document.getElementById('minNoteCountSelect');
 
     // --- Durum Değişkenleri ---
     let selectedAppUsernameForModule = null;
@@ -61,26 +68,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let isProcessingStep = false;
     let currentDetailedUser = null;
     let continueFetchingDashboard = false;
+    let lastFetchedTimestamp = null;
 
-    // =================================================================
-    // DEĞİŞİKLİK BAŞLANGICI: İsteğiniz doğrultusunda bu bölüm güncellendi.
-    // =================================================================
-
-    /**
-     * "Son Aktiflik Filtresi" için zaman adımlarını dinamik olarak oluşturur.
-     * Bu fonksiyon, 2 günlük (48 saat) bir zaman aralığını 30 dakikalık adımlarla oluşturur.
-     * @returns {Array<Object>} Slider için değer ve etiketleri içeren bir dizi.
-     */
     function generateTimeSteps() {
         const steps = [];
-        steps.push({ value: 0, label: "Limitsiz" }); // "Limitsiz" seçeneği
-
-        // 48 saatlik aralık için 30 dakikalık hassasiyetle 96 adım oluştur
+        steps.push({ value: 0, label: "Limitsiz" });
         for (let i = 1; i <= 96; i++) {
             const totalMinutes = i * 30;
             const totalHours = totalMinutes / 60;
-            const days = totalMinutes / (60 * 24); // Filtreleme mantığı gün cinsinden çalışıyor
-
+            const days = totalMinutes / (60 * 24);
             let label = "";
             if (totalMinutes < 60) {
                 label = `Son ${totalMinutes} Dakika`;
@@ -93,7 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (totalHours % 1 === 0) {
                 label = `Son ${totalHours} Saat`;
             } else {
-                // "1.5 Saat" gibi ondalıklı gösterimler için
                 label = `Son ${parseFloat(totalHours.toFixed(1))} Saat`;
             }
             steps.push({ value: days, label: label });
@@ -101,20 +96,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return steps;
     }
 
-    // Eskiden statik olan bu dizi, şimdi dinamik olarak oluşturuluyor.
     const LAST_ACTIVE_SLIDER_VALUES = generateTimeSteps();
 
     if (lastActiveFilterInput) {
-        // Slider'ın maksimum değerini yeni adım sayısına göre ayarla
         lastActiveFilterInput.max = LAST_ACTIVE_SLIDER_VALUES.length - 1;
-        // Varsayılan değeri "Son 6 Saat" olarak ayarla (bu, 12. adıma denk geliyor)
         lastActiveFilterInput.value = 12;
     }
-
-    // =================================================================
-    // DEĞİŞİKLİK SONU
-    // =================================================================
-
 
     // --- Yardımcı Fonksiyonlar ---
     function logAction(message, type = 'info') {
@@ -263,7 +250,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if(selectedUserDetailsPanel) selectedUserDetailsPanel.style.display = 'none'; currentDetailedUser = null;
         if(step2ProgressBar) updateProgressBar(step2ProgressBar, 0);
         
-        // DEĞİŞİKLİK: Modül sıfırlandığında slider'ı varsayılan değere (6 saat) ayarla.
         if (lastActiveFilterInput) {
              lastActiveFilterInput.value = 12; 
         }
@@ -385,8 +371,88 @@ document.addEventListener('DOMContentLoaded', () => {
         updateStep2ButtonVisibility();
     }
 
+    async function fetchTaggedPostsForSelection() {
+        if (isProcessingStep) { logAction("Zaten bir gönderi çekme işlemi devam ediyor.", "warn"); return; }
+        
+        const tag = tagInputField.value.trim();
+        if (!tag) {
+            logAction("Lütfen geçerli bir etiket girin.", "error");
+            return;
+        }
+
+        const selectedSort = document.querySelector('input[name="sortOrder"]:checked').value;
+    
+        isProcessingStep = true;
+        continueFetchingDashboard = true;
+        logAction(`Adım 1: '${tag}' etiketine sahip gönderiler '${selectedSort}' sıralamasıyla çekiliyor (DENEYSEL)...`, "info");
+        
+        if(fetchDashboardButton) fetchDashboardButton.style.display = 'none';
+        if(stopFetchDashboardButton) stopFetchDashboardButton.style.display = 'inline-flex';
+        
+        if (allFetchedDashboardPosts.size === 0) {
+            lastFetchedTimestamp = Math.floor(Date.now() / 1000);
+        }
+    
+        let postsFetchedInThisRun = 0;
+    
+        while (continueFetchingDashboard) {
+            logAction(`'${tag}' için gönderi grubu çekiliyor... (before: ${lastFetchedTimestamp}, sort: ${selectedSort})`, "debug");
+            try {
+                const params = { 
+                    tag: tag, 
+                    limit: 20, 
+                    before: lastFetchedTimestamp,
+                    sort: selectedSort
+                };
+                
+                const data = await executeApiActionForModule('getTaggedPosts', params, false);
+    
+                if (data && data.length > 0) {
+                    let newPostsAddedCount = 0;
+                    data.forEach(post => {
+                        const postId = post.id_string || post.id.toString();
+                        if (!allFetchedDashboardPosts.has(postId)) {
+                            allFetchedDashboardPosts.set(postId, post);
+                            newPostsAddedCount++;
+                        }
+                    });
+    
+                    if (newPostsAddedCount === 0) {
+                        logAction("Bu gruptaki tüm gönderiler daha önce çekilmiş veya tekrar ediyor.", "info");
+                    }
+    
+                    lastFetchedTimestamp = data[data.length - 1].timestamp;
+                    postsFetchedInThisRun += newPostsAddedCount;
+                    if (totalFetchedPostsCountSpan) totalFetchedPostsCountSpan.textContent = `Toplam Çekilen Gönderi: ${allFetchedDashboardPosts.size}`;
+                    renderDashboardPosts(Array.from(allFetchedDashboardPosts.values()));
+    
+                } else {
+                    logAction(`'${tag}' etiketi için yeni gönderi bulunamadı. Toplam: ${allFetchedDashboardPosts.size}`, "info");
+                    continueFetchingDashboard = false;
+                    break;
+                }
+            } catch (error) {
+                logAction(`'${tag}' etiketli gönderiler çekilirken hata: ${error.message}`, "error");
+                continueFetchingDashboard = false;
+                break;
+            }
+            if (continueFetchingDashboard) await delay(500);
+        }
+        
+        logAction(`'${tag}' etiketi için işlem tamamlandı. Bu çalıştırmada ${postsFetchedInThisRun} yeni gönderi bulundu.`, "system_success");
+        isProcessingStep = false;
+        if(fetchDashboardButton) fetchDashboardButton.style.display = 'inline-flex';
+        if(stopFetchDashboardButton) stopFetchDashboardButton.style.display = 'none';
+        updateStep2ButtonVisibility();
+    }
+
     function renderDashboardPosts(posts) {
         if(!dashboardPostsContainer) return;
+    
+        const minNotes = parseInt(minNoteCountSelect.value, 10);
+        const filteredPosts = posts.filter(post => (post.note_count || 0) >= minNotes);
+        logAction(`${posts.length} gönderi alındı, ${filteredPosts.length} tanesi minimum ${minNotes} not filtresini geçti.`, "debug");
+    
         const previouslyCheckedPostIds = new Set();
         dashboardPostsContainer.querySelectorAll('.dashboard-post-select:checked').forEach(cb => {
             const parentItem = cb.closest('.dashboard-post-item');
@@ -394,28 +460,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 previouslyCheckedPostIds.add(parentItem.dataset.postId);
             }
         });
-
+    
         dashboardPostsContainer.innerHTML = '';
         
-        if (!posts || posts.length === 0) {
-            dashboardPostsContainer.innerHTML = '<p class="text-slate-400 italic text-center py-4 w-full">Panelde gösterilecek gönderi bulunamadı.</p>';
+        if (!filteredPosts || filteredPosts.length === 0) {
+            dashboardPostsContainer.innerHTML = '<p class="text-slate-400 italic text-center py-4 w-full">Filtreye uygun gönderi bulunamadı.</p>';
             if(goToStep2Button) goToStep2Button.style.display = 'none';
             if(selectAllStep1PostsButton) selectAllStep1PostsButton.style.display = 'none';
             if(selectTurkishPostsButton) selectTurkishPostsButton.style.display = 'none';
             return;
         }
-
-        posts.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-        posts.forEach((post, index) => {
+    
+        filteredPosts.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    
+        filteredPosts.forEach((post, index) => {
             const item = document.createElement('div');
+            const postId = post.id_string || post.id.toString();
             item.className = 'dashboard-post-item';
-            item.dataset.postId = post.id_string;
+            item.dataset.postId = postId;
             item.dataset.postIndex = index;
-
+    
             let imageUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(post.blog_name || 'T')}&background=random&size=150`;
             let postSummaryHtml = '';
-
+    
             if (post.content && Array.isArray(post.content) && post.content.length > 0) {
                 post.content.forEach(block => {
                     if (block.type === 'text') {
@@ -438,13 +505,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (imageUrl.startsWith('https://ui-avatars.com') && post.trail && post.trail.length > 0 && post.trail[0].blog && post.trail[0].blog.avatar_url_128) {
                 imageUrl = post.trail[0].blog.avatar_url_128;
             }
-
+    
             const hasImage = !imageUrl.startsWith('https://ui-avatars.com');
             let titleHtml = post.title ? `<h3 class="text-md font-semibold mb-2">${post.title}</h3>` : '';
-
+    
             item.innerHTML = `
                 <div class="post-checkbox-container">
-                    <input type="checkbox" class="form-checkbox h-5 w-5 text-indigo-600 rounded dashboard-post-select" data-post-id="${post.id_string}" ${previouslyCheckedPostIds.has(post.id_string) ? 'checked' : ''}>
+                    <input type="checkbox" class="form-checkbox h-5 w-5 text-indigo-600 rounded dashboard-post-select" data-post-id="${postId}" ${previouslyCheckedPostIds.has(postId) ? 'checked' : ''}>
                 </div>
                 <div class="post-thumbnail-container">
                     ${hasImage ? `<img src="${imageUrl}" alt="Gönderi Görseli" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'post-thumbnail-placeholder\\'>${post.type}</div>';">` : `<div class="post-thumbnail-placeholder">${post.type}</div>`}
@@ -461,20 +528,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span>Gönderi Türü: <strong>${post.type}</strong></span>
                 </div>
             `;
-
+    
             const checkbox = item.querySelector('.dashboard-post-select');
             checkbox.addEventListener('change', () => {
-                const currentPostData = allFetchedDashboardPosts.get(item.dataset.postId);
+                const currentPostData = allFetchedDashboardPosts.get(postId);
                 if (!currentPostData) return;
-
+    
                 if (checkbox.checked) {
                     item.classList.add('selected');
-                    if (!selectedDashboardPostsData.some(p => p.id_string === currentPostData.id_string)) {
+                    if (!selectedDashboardPostsData.some(p => (p.id_string || p.id.toString()) === postId)) {
                         selectedDashboardPostsData.push(currentPostData);
                     }
                 } else {
                     item.classList.remove('selected');
-                    selectedDashboardPostsData = selectedDashboardPostsData.filter(p => p.id_string !== currentPostData.id_string);
+                    selectedDashboardPostsData = selectedDashboardPostsData.filter(p => (p.id_string || p.id.toString()) !== postId);
                 }
                 updateStep2ButtonVisibility();
             });
@@ -492,14 +559,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const parentItem = cb.closest('.dashboard-post-item');
             if (parentItem && parentItem.dataset.postId) {
                 const postToAdd = allFetchedDashboardPosts.get(parentItem.dataset.postId);
-                if (postToAdd && !selectedDashboardPostsData.some(p => p.id_string === postToAdd.id_string)) {
+                if (postToAdd && !selectedDashboardPostsData.some(p => (p.id_string || p.id.toString()) === postToAdd.id_string)) {
                      selectedDashboardPostsData.push(postToAdd);
                 }
             }
         });
-
+    
         updateStep2ButtonVisibility();
-        if (posts.length > 0) {
+        if (filteredPosts.length > 0) {
             if (selectAllStep1PostsButton) selectAllStep1PostsButton.style.display = 'inline-block';
             if (selectTurkishPostsButton) selectTurkishPostsButton.style.display = 'inline-block';
         }
@@ -563,11 +630,12 @@ document.addEventListener('DOMContentLoaded', () => {
         let turkishPostCount = 0;
 
         for (const post of allPosts) {
+            const postId = post.id_string || post.id.toString();
             const textToAnalyze = extractTextFromPost(post);
             if (textToAnalyze.trim().length > 20) {
                 const detectedLang = window.franc(textToAnalyze);
                 if (detectedLang === 'tur') {
-                    const checkbox = dashboardPostsContainer.querySelector(`.dashboard-post-select[data-post-id="${post.id_string}"]`);
+                    const checkbox = dashboardPostsContainer.querySelector(`.dashboard-post-select[data-post-id="${postId}"]`);
                     if (checkbox && !checkbox.checked) {
                         checkbox.checked = true;
                         checkbox.dispatchEvent(new Event('change'));
@@ -601,14 +669,14 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedUsersToProcessFromStep2.clear();
         allBlogNamesFromNotes.clear();
 
-        // 1. Notları Topla
         const concurrencyLimitNotes = 5;
 
         const fetchNotesTask = async (post) => {
             try {
+                const postId = post.id_string || post.id.toString();
                 const notesData = await executeApiActionForModule('getPostNotes', {
                     blog_identifier: post.blog_name,
-                    post_id: post.id_string,
+                    post_id: postId,
                     mode: 'all',
                 });
                 if (notesData && notesData.notes) {
@@ -619,7 +687,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             } catch (error) {
-                logAction(`'${post.id_string}' notları çekme hatası: ${error.message}`, "error");
+                const postId = post.id_string || post.id.toString();
+                logAction(`'${postId}' notları çekme hatası: ${error.message}`, "error");
             }
         };
 
@@ -658,7 +727,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         logAction(`${allBlogNamesFromNotes.size} benzersiz blog bulundu. Bilgiler filtreleniyor...`, "system");
 
-        // 2. Blogları Filtrele
         const selectedFilterIndex = parseInt(lastActiveFilterInput.value);
         const maxDaysOldFilter = LAST_ACTIVE_SLIDER_VALUES[selectedFilterIndex]?.value;
 
@@ -829,7 +897,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const workerTask = async (blogName) => {
             try {
-                // API üzerinden avatar URL'sini çekmek yerine doğrudan fetch ile kontrol ediyoruz, çünkü bu daha hızlı olabilir.
                 const response = await fetch(`https://api.tumblr.com/v2/blog/${blogName}/avatar/64`);
                 if (response.url && response.url.includes("assets.tumblr.com/images/default_avatar/")) {
                     deselectedCount++;
@@ -931,15 +998,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (postsToLikeData && postsToLikeData.posts && postsToLikeData.posts.length > 0) {
                         const postsToLike = postsToLikeData.posts.filter(p => p.reblog_key);
                         for (const post of postsToLike) {
+                            const postId = post.id_string || post.id.toString();
                              if (!isProcessingStep) break;
                              try {
-                                await executeApiActionForModule('likeTumblrPost', { post_id: post.id_string, reblog_key: post.reblog_key });
+                                await executeApiActionForModule('likeTumblrPost', { post_id: postId, reblog_key: post.reblog_key });
                                 totalLikedPostsOverall++;
-                                logAction(` -> '${post.id_string}' (${userBlog.name}) beğenildi. Toplam: ${totalLikedPostsOverall}`, "success");
+                                logAction(` -> '${postId}' (${userBlog.name}) beğenildi. Toplam: ${totalLikedPostsOverall}`, "success");
                                 if(likedPostsCountStep3Span) likedPostsCountStep3Span.textContent = totalLikedPostsOverall;
                                 await delay(300);
                              } catch(likeError) {
-                                logAction(` -> '${post.id_string}' beğenilemedi: ${likeError.message}`, "error");
+                                logAction(` -> '${postId}' beğenilemedi: ${likeError.message}`, "error");
                                 if (likeError.message?.includes("429")) {
                                     logAction("Beğeni rate limitine takıldınız! Bu kullanıcı için kalan beğeniler durduruluyor.", "error");
                                     break;
@@ -970,7 +1038,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Olay Dinleyicileri ---
-    if (fetchDashboardButton) fetchDashboardButton.addEventListener('click', fetchDashboardPostsForSelection);
+    if (fetchDashboardButton) {
+        fetchDashboardButton.addEventListener('click', () => {
+            if (sourceTagRadio.checked) {
+                fetchTaggedPostsForSelection();
+            } else {
+                fetchDashboardPostsForSelection();
+            }
+        });
+    }
+
+    function handleSourceChange() {
+        if (sourceTagRadio.checked) {
+            tagInputContainer.style.display = 'block';
+            fetchDashboardButton.textContent = "Etiketten Gönderi Çek";
+        } else {
+            tagInputContainer.style.display = 'none';
+            fetchDashboardButton.textContent = "Panel Gönderilerini Çek";
+        }
+        allFetchedDashboardPosts.clear();
+        lastFetchedTimestamp = null;
+        renderDashboardPosts([]);
+        logAction("Gönderi kaynağı değiştirildi. Liste temizlendi.", "system");
+    }
+    
+    if (sourceDashboardRadio) sourceDashboardRadio.addEventListener('change', handleSourceChange);
+    if (sourceTagRadio) sourceTagRadio.addEventListener('change', handleSourceChange);
+    
+    if (minNoteCountSelect) {
+        minNoteCountSelect.addEventListener('change', () => {
+            renderDashboardPosts(Array.from(allFetchedDashboardPosts.values()));
+        });
+    }
+
     if (goToStep2Button) goToStep2Button.addEventListener('click', () => {
         if(step1Container) step1Container.style.display = 'none';
         if(step2Container) step2Container.style.display = 'block';

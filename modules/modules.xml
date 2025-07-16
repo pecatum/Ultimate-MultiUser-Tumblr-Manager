@@ -58,6 +58,20 @@
         <param name="urlString" type="string" required="true" prompt="Takipten çıkarılacak blogun URL'si:"/>
       </params>
     </module>
+    <module>
+  <id>getTaggedPosts</id>
+  <displayName>Etiketlenmiş Gönderileri Al (API)</displayName>
+  <description>Belirtilen bir etikete sahip gönderileri çeker.</description>
+  <script>taggedPostHandler.js</script>
+  <handlerFunction>fetchTaggedPosts</handlerFunction>
+  <authenticationType>apiKey</authenticationType>
+  <type>apiAction</type>
+  <params>
+    <param name="tag" type="string" required="true"/>
+    <param name="before" type="number" required="false"/>
+    <param name="limit" type="number" required="false" default="20"/>
+  </params>
+</module>
     <module
             id="urlNoteExtractorModule"
             displayName="URL'den Not Çekerek Takip Önerisi"
@@ -209,8 +223,7 @@
       <authenticationType>userTokenRequired</authenticationType>
     </module>
 
-        <!-- YENİ EKLENEN ORİJİNAL GÖNDERİ BULUCU SAYFASI -->
-    <module>
+        <module>
       <id>originalPostFinderPage</id>
       <displayName>Orijinal Gönderi Bulucu</displayName>
       <description>Herhangi bir blogun sadece orijinal (reblog olmayan) gönderilerini bulur ve listeler.</description>
@@ -218,7 +231,6 @@
       <targetPage>/modules/original_post_finder.html</targetPage>
     </module>
 
-    <!-- YENİ EKLENEN BACKEND API EYLEMİ -->
     <module>
       <id>fetchBlogOriginalPostsApi</id>
       <displayName>Blogun Orijinal Gönderilerini Çek (API)</displayName>
@@ -227,7 +239,6 @@
       <handlerFunction>fetchBlogOriginalPosts</handlerFunction>
       <authenticationType>apiKey</authenticationType>
       <type>apiAction</type>
-      <!-- Bu eylemin alacağı parametreleri tanımlıyoruz. Frontend'den bu isimlerle gönderilecek. -->
       <params>
         <param name="blog_identifier" type="string" required="true"/>
         <param name="limit" type="number" required="false" default="20"/>
@@ -250,9 +261,7 @@
       <id>getPostContentForRepublishApi</id>
       <displayName>Yeniden Gönderim İçin Gönderi İçeriğini Çek (Klonlama API)</displayName>
       <description>Bir Tumblr gönderi URL'sinden yeniden göndermek için gerekli tam içeriği (bloklar, etiketler vb.) çeker.</description>
-      <!-- Backend'de bu dosyayı kullanır -->
       <script>postRepublisherHandler.js</script>
-      <!-- Bu dosyadaki bu fonksiyonu çağırır -->
       <handlerFunction>fetchPostContentForRepublish</handlerFunction>
       <authenticationType>apiKey</authenticationType>
       <type>apiAction</type>
@@ -265,14 +274,11 @@
       <id>createNewPostApi</id>
       <displayName>Yeni Tumblr Gönderisi Oluştur (Klonlama API)</displayName>
       <description>Belirtilen kullanıcı için verilen içeriklerle yeni bir gönderi oluşturur (sıraya ekler, yayınlar veya planlar).</description>
-      <!-- Backend'de bu dosyayı kullanır -->
       <script>postRepublisherHandler.js</script>
-      <!-- Bu dosyadaki bu fonksiyonu çağırır -->
       <handlerFunction>processNewPostSubmission</handlerFunction>
       <authenticationType>userToken</authenticationType>
       <type>apiAction</type>
-      <!-- Parametreler client tarafından dinamik olarak gönderildiği için burada belirtilmemiştir -->
-    </module>
+      </module>
 
 
     <module>

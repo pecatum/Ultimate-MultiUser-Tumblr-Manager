@@ -17,6 +17,7 @@
         .suggested-user-item:last-child { border-bottom: none; }
         .suggested-user-item img.user-avatar { width: 80px; height: 80px; border-radius: 50%; margin-right: 1rem; border: 2px solid transparent; object-fit: cover; }
         .suggested-user-item.detailed-view img.user-avatar { border-color: #4f46e5; }
+        /* Renkli çerçeveler artık JS tarafında kullanılmıyor ama stil olarak kalabilir */
         .suggested-user-item.frame-red { border-left-color: #ef4444; }
         .suggested-user-item.frame-green { border-left-color: #22c55e; }
         .suggested-user-item.frame-blue { border-left-color: #3b82f6; }
@@ -95,7 +96,12 @@
                     </div>
                     <div id="suggestedUsersList" class="min-h-[30rem] h-[calc(100vh-300px)] overflow-y-auto border border-gray-200 rounded-md bg-slate-50 custom-scroll">
                         <p class="text-slate-400 italic p-4 text-center">Bloglar Adım 2'de burada listelenecek.</p>
+                                            <div id="paginationControlsContainer" class="flex justify-between items-center mt-2 p-2">
+                        </div>
                     </div>
+                    
+                    <div id="paginationControlsContainer" class="flex justify-between items-center mt-2 p-2">
+                        </div>
                 </div>
                 <div id="selectedUserDetailsPanel" class="mt-4 p-4 border border-gray-200 rounded-md bg-slate-50" style="display: none;">
                     <img id="selectedUserAvatar" src="https://placehold.co/128x128/e2e8f0/707070?text=Avatar" alt="Seçili Kullanıcı Avatarı" class="w-28 h-28 rounded-full mx-auto mb-3 border-4 border-slate-200 object-cover shadow-md">
@@ -155,7 +161,6 @@
                             Varsayılan Avatarlıları Seçimden Kaldır
                         </button>
                         <p class="text-xs text-slate-500 mt-2">Bu işlem, seçili bloglar arasından profil resmini değiştirmemiş olanları (varsayılan Tumblr avatarı kullananları) seçimden kaldırır.</p>
-                        <!-- YENİ EKLENEN PROGRESS BAR -->
                         <div id="avatarScanProgressContainer" class="mt-2" style="display: none;">
                             <div class="flex justify-between text-xs text-slate-500 mb-0.5">
                                 <span>Avatar taraması sürüyor...</span>

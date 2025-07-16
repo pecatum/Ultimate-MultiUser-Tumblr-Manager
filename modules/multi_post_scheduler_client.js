@@ -37,9 +37,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const finalActionProgressBar = document.getElementById('finalActionProgressBar');
     const executeFinalActionButton = document.getElementById('executeFinalActionButton');
 
-    // DEĞİŞİKLİK: Worker ayarları için yeni elementler
     const workerCountSlider = document.getElementById('workerCountSlider');
     const workerCountValue = document.getElementById('workerCountValue');
+
+    // DEĞİŞİKLİK: Rastgele zaman dağıtma slider'ı için yeni elementler
+    const randomizeTimeSlider = document.getElementById('randomizeTimeSlider');
+    const randomizeTimeValue = document.getElementById('randomizeTimeValue');
 
 
     // --- Durum Değişkenleri ---
@@ -113,8 +116,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             requestBody.appUsername = appUsernameForAuth;
         }
-
-        // logAction(`API Eylemi: ${actionId}, Kullanıcı: ${requestBody.appUsername || 'API Anahtarı'}`, "debug");
 
         const response = await fetch('/api/execute-action', {
             method: 'POST',
@@ -495,7 +496,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Ana İşlem Mantığı (Reblog) ---
-    // DEĞİŞİKLİK: Fonksiyon, "Lider-İşçi" (Leader-Worker) modeli kullanarak daha gelişmiş paralel işlem yapacak şekilde güncellendi.
     async function handleSubmitAction() {
         if (isProcessing) { logAction("Devam eden bir işlem var.", "warn"); return; }
         if (selectedAppUsernames.size === 0) { logAction("Lütfen işlem yapılacak hesapları seçin.", "warn"); if(noUserSelectedWarning) noUserSelectedWarning.style.display = 'block'; return; }
@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let processedOverallCount = 0;
         const totalOperations = selectedAppUsernames.size * postsToReblog.length;
-        const concurrentWorkers = parseInt(workerCountSlider.value, 10); // LİDER: İşçi sayısını slider'dan al.
+        const concurrentWorkers = parseInt(workerCountSlider.value, 10);
         
         logAction(`Lider-İşçi modeliyle paralel reblog işlemi başlıyor.`, "system");
         logAction(`LİDER: ${concurrentWorkers} işçi ile ${totalOperations} toplam görev yönetilecek.`, "system");
@@ -523,7 +523,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const commonCommentText = commonReblogCommentInput ? commonReblogCommentInput.value.trim() : '';
         const commonTagsText = commonReblogTagsInput ? commonReblogTagsInput.value.trim() : '';
         
-        // LİDER: Tüm görevleri tek bir "görev kuyruğu" (task queue) haline getir.
+        // DEĞİŞİKLİK: Her kullanıcı için zaman kaydırma ofsetini önceden hesapla
+        const userTimeOffsets = new Map();
+        if (currentSendMode === 'schedule' && currentScheduleScope === 'bulk' && randomizeTimeSlider && parseInt(randomizeTimeSlider.value, 10) > 0) {
+            const randomizationMinutes = parseInt(randomizeTimeSlider.value, 10);
+            logAction(`LİDER: Her hesap için zaman planlaması ±${randomizationMinutes} dakika aralığında rastgele dağıtılacak.`, "system");
+            for (const appUsername of selectedAppUsernames) {
+                const offset = (Math.random() * 2 - 1) * randomizationMinutes;
+                userTimeOffsets.set(appUsername, offset);
+            }
+        }
+
         const allTasks = [];
         for (const appUsername of selectedAppUsernames) {
             postsToReblog.forEach((postDetail, postIndex) => {
@@ -531,26 +541,21 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
-        // İŞÇİ: Tek bir görevi işleyecek olan fonksiyon.
         const worker = async (workerId) => {
-            // Görev kuyruğunda iş olduğu sürece çalış.
             while (allTasks.length > 0) {
                 if (!isProcessing) {
                     logAction(`İŞÇİ #${workerId}: Lider tarafından durduruldu.`, 'warn');
                     break;
                 }
-
-                const task = allTasks.shift(); // Kuyruktan bir görev al (atomik işlem değil ama JS'nin single-threaded yapısı için yeterli).
+                const task = allTasks.shift();
                 if (!task) continue;
 
                 const { appUsername, postDetail, postIndex } = task;
                 const userBlogData = allAvailableUsers.find(u => u.appUsername === appUsername);
-
                 const submissionParams = {};
                 const logMessagePrefix = `[${userBlogData?.tumblrBlogName || appUsername} / Gönderi ${postIndex + 1}]`;
 
                 try {
-                    // Bu göreve özel gönderim parametrelerini oluştur.
                     let reblogCommentNpf = [];
                     let reblogTagsArray = [];
 
@@ -561,12 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (currentSendMode === 'schedule' && currentScheduleScope === 'individual') {
                             const uniqueIdSuffix = `${appUsername.replace(/\W/g, '_')}_${postIndex}`;
                             const individualTagsElem = document.getElementById(`reblog_tags_${uniqueIdSuffix}`);
-                            const individualTagsText = individualTagsElem ? individualTagsElem.value.trim() : '';
-                            if (individualTagsText) {
-                                reblogTagsArray = individualTagsText.split(',').map(t => t.trim()).filter(t => t);
-                            } else if (commonTagsText) {
-                                reblogTagsArray = commonTagsText.split(',').map(t => t.trim()).filter(t => t);
-                            }
+                            reblogTagsArray = (individualTagsElem?.value.trim() || commonTagsText).split(',').map(t => t.trim()).filter(t => t);
                         } else if (commonTagsText) {
                             reblogTagsArray = commonTagsText.split(',').map(t => t.trim()).filter(t => t);
                         }
@@ -576,11 +576,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         const uniqueIdSuffix = `${appUsername.replace(/\W/g, '_')}_${postIndex}`;
                         const individualCommentElem = document.getElementById(`reblog_comment_${uniqueIdSuffix}`);
                         const individualCommentText = individualCommentElem ? individualCommentElem.value.trim() : '';
-                        if (individualCommentText) {
-                            reblogCommentNpf.push({ type: 'text', text: individualCommentText });
-                        } else if (commonCommentText) {
-                            reblogCommentNpf.push({ type: 'text', text: commonCommentText });
-                        }
+                        if (individualCommentText) reblogCommentNpf.push({ type: 'text', text: individualCommentText });
+                        else if (commonCommentText) reblogCommentNpf.push({ type: 'text', text: commonCommentText });
                     } else if (commonCommentText) {
                         reblogCommentNpf.push({ type: 'text', text: commonCommentText });
                     }
@@ -603,6 +600,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (currentScheduleScope === 'bulk') {
                             if (bulkScheduleDateTimeInput && bulkScheduleDateTimeInput.value) {
                                 let baseTime = new Date(bulkScheduleDateTimeInput.value);
+                                
+                                // DEĞİŞİKLİK: Kullanıcıya özel zaman ofsetini uygula
+                                if (userTimeOffsets.has(appUsername)) {
+                                    const userOffsetMinutes = userTimeOffsets.get(appUsername);
+                                    baseTime.setMinutes(baseTime.getMinutes() + userOffsetMinutes);
+                                    logAction(`İŞÇİ #${workerId}: ${logMessagePrefix} için zaman ofseti uygulandı: ${userOffsetMinutes.toFixed(2)} dk.`, 'debug');
+                                }
+
                                 if (bulkScheduleIntervalInput && bulkScheduleIntervalInput.value) {
                                     const intervalMinutes = parseInt(bulkScheduleIntervalInput.value);
                                     if (!isNaN(intervalMinutes) && intervalMinutes > 0) {
@@ -634,13 +639,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        // LİDER: İşçileri (worker) başlat.
         const workerPromises = [];
         for (let i = 0; i < concurrentWorkers; i++) {
-            workerPromises.push(worker(i + 1)); // Her işçiye bir kimlik (ID) ver.
+            workerPromises.push(worker(i + 1));
         }
 
-        // LİDER: Tüm işçilerin görevlerini tamamlamasını bekle.
         try {
             await Promise.all(workerPromises);
         } catch (err) {
@@ -660,13 +663,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if(executeActionButtonDirect) executeActionButtonDirect.addEventListener('click', handleSubmitAction);
     if(executeFinalActionButton) executeFinalActionButton.addEventListener('click', handleSubmitAction);
 
-    // DEĞİŞİKLİK: Worker slider'ı için olay dinleyici
     if (workerCountSlider && workerCountValue) {
         workerCountSlider.addEventListener('input', (e) => {
             workerCountValue.textContent = e.target.value;
         });
     }
 
+    // DEĞİŞİKLİK: Rastgele zaman slider'ı için olay dinleyici
+    if (randomizeTimeSlider && randomizeTimeValue) {
+        randomizeTimeSlider.addEventListener('input', (e) => {
+            randomizeTimeValue.textContent = e.target.value;
+        });
+    }
 
     // --- Başlangıç ---
     function initializeModule() {

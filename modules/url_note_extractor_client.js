@@ -35,6 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectAllStep2UsersButton = document.getElementById('selectAllStep2UsersButton');
     const suggestedUsersList = document.getElementById('suggestedUsersList');
     const goToStep3Button = document.getElementById('goToStep3Button');
+    // GÜNCELLENDİ: Sayfalama için yeni element
+    const paginationControlsContainer = document.getElementById('paginationControlsContainer');
 
     // Left Panel
     const selectedUserDetailsPanel = document.getElementById('selectedUserDetailsPanel');
@@ -71,6 +73,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedUsersToProcessFromStep2 = new Set();
     let isProcessingStep = false;
     let currentDetailedUser = null;
+    
+    // GÜNCELLENDİ: Sayfalama durum değişkenleri eklendi
+    let currentPage = 1;
+    const USERS_PER_PAGE = 50;
 
     const LAST_ACTIVE_SLIDER_VALUES = [
         { value: 0, label: "Limitsiz" }, { value: 0.25, label: "Son 6 Saat" },
@@ -205,6 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (userLimitsContainer) userLimitsContainer.style.display = 'block';
     }
 
+    // GÜNCELLENDİ: Sayfalama durumu sıfırlanıyor
     function resetModuleState(fullReset = true) {
         if (fullReset && userLimitsContainer) userLimitsContainer.style.display = 'none';
         
@@ -221,9 +228,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if(step1Container && !fullReset && selectedAppUsernameForModule) step1Container.style.display = 'block';
         else if(step1Container) step1Container.style.display = 'none';
 
-        potentialFollowTargets.clear(); selectedUsersToProcessFromStep2.clear();
+        potentialFollowTargets.clear(); 
+        selectedUsersToProcessFromStep2.clear();
+        currentPage = 1; // Sayfalamayı sıfırla
         if(suggestedUsersList) suggestedUsersList.innerHTML = '<p class="text-slate-400 italic p-4 text-center">Bloglar Adım 2\'de burada listelenecek.</p>';
-        if(selectedUserDetailsPanel) selectedUserDetailsPanel.style.display = 'none'; currentDetailedUser = null;
+        if (paginationControlsContainer) paginationControlsContainer.innerHTML = ''; // Sayfalama kontrollerini temizle
+        if(selectedUserDetailsPanel) selectedUserDetailsPanel.style.display = 'none'; 
+        currentDetailedUser = null;
         if(step2ProgressBar) updateProgressBar(step2ProgressBar, 0);
         if (lastActiveFilterInput) {
              lastActiveFilterInput.value = LAST_ACTIVE_SLIDER_VALUES.findIndex(v => v.value === 7) || 4;
@@ -233,7 +244,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if(selectAllStep2UsersButton) selectAllStep2UsersButton.style.display = 'none';
         if(step2Container) step2Container.style.display = 'none';
 
-        if(likesPerUserSliderInput) likesPerUserSliderInput.value = 2; updateLikesPerUserDisplay();
+        if(likesPerUserSliderInput) likesPerUserSliderInput.value = 2; 
+        updateLikesPerUserDisplay();
         if(step3ProgressBar) updateProgressBar(step3ProgressBar, 0);
         if(followedCountSpan) followedCountSpan.textContent = '0';
         if(likedPostsCountStep3Span) likedPostsCountStep3Span.textContent = '0';
@@ -435,6 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // GÜNCELLENDİ: Takip edilen/edenleri listeye eklemeyecek şekilde filtreleme mantığı değiştirildi.
     async function findAndFilterSuggestedUsers() {
         if (allBlogNamesFromNotes.size === 0) { 
             logAction("Adım 1'den gelen işlenecek blog bulunmuyor.", "warn"); 
@@ -453,6 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         potentialFollowTargets.clear(); 
         selectedUsersToProcessFromStep2.clear();
+        currentPage = 1; // Sayfalamayı sıfırla
 
         const selectedFilterIndex = parseInt(lastActiveFilterInput.value);
         const maxDaysOldFilter = LAST_ACTIVE_SLIDER_VALUES[selectedFilterIndex]?.value;
@@ -475,8 +489,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (blogStatusData) {
                     const blog = blogStatusData; 
-                    const lastUpdatedTimestamp = blog.updated; 
+                    
+                    // GÜNCELLENDİ: Takip edilen veya takip eden blogları listeye hiç ekleme.
+                    if (blog.is_following_me || blog.am_i_following_them) {
+                        logAction(` -> "${blogNameFromNote}" atlanıyor (takip durumu mevcut).`, "debug");
+                        return; // Bu bloğu atla
+                    }
 
+                    const lastUpdatedTimestamp = blog.updated; 
                     if (maxDaysOldFilter > 0 && lastUpdatedTimestamp) {
                         const blogAgeDays = (Date.now() / 1000 - lastUpdatedTimestamp) / (60 * 60 * 24);
                         if (blogAgeDays > maxDaysOldFilter) {
@@ -484,35 +504,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             return; 
                         }
                     }
-
-                    let canAddToList = true;
-                    let isSelectable = true;
-                    let frameColorClass = '';
-
-                    if (blog.is_following_me === true && blog.am_i_following_them === false) { 
-                        frameColorClass = 'frame-green';
-                        isSelectable = false; 
-                    } else if (blog.is_following_me === false && blog.am_i_following_them === true) { 
-                        frameColorClass = 'frame-red';
-                        isSelectable = false;
-                    } else if (blog.is_following_me === true && blog.am_i_following_them === true) { 
-                        frameColorClass = 'frame-blue';
-                        isSelectable = false;
-                    }
                     
-                    if (canAddToList) {
-                        const avatarUrl = blog.avatar?.length > 0 ? blog.avatar[0]?.url || `https://api.tumblr.com/v2/blog/${blog.name}/avatar/96` : `https://api.tumblr.com/v2/blog/${blog.name}/avatar/96`;
-                        potentialFollowTargets.set(blogNameFromNote, {
-                            name: blog.name, title: blog.title || blog.name, url: blog.url,
-                            avatar: avatarUrl, updated: lastUpdatedTimestamp, 
-                            posts: blog.posts, description: blog.description || "",
-                            isSelectable: isSelectable,
-                            frameColorClass: frameColorClass,
-                            is_following_me: blog.is_following_me,
-                            am_i_following_them: blog.am_i_following_them
-                        });
-                        logAction(`Potansiyel blog bulundu: ${blogNameFromNote} (Siz:${blog.am_i_following_them ? 'E' : 'H'}, O:${blog.is_following_me ? 'E' : 'H'})`, "success");
-                    }
+                    const avatarUrl = blog.avatar?.length > 0 ? blog.avatar[0]?.url || `https://api.tumblr.com/v2/blog/${blog.name}/avatar/96` : `https://api.tumblr.com/v2/blog/${blog.name}/avatar/96`;
+                    potentialFollowTargets.set(blogNameFromNote, {
+                        name: blog.name, title: blog.title || blog.name, url: blog.url,
+                        avatar: avatarUrl, updated: lastUpdatedTimestamp, 
+                        posts: blog.posts, description: blog.description || "",
+                    });
+                    logAction(`Potansiyel blog bulundu: ${blogNameFromNote}`, "success");
                 }
             } catch (userError) {
                 logAction(`"${blogNameFromNote}" blog/takip bilgisi çekme hatası: ${userError.message}`, "error");
@@ -562,52 +561,94 @@ document.addEventListener('DOMContentLoaded', () => {
         if(findSuggestedUsersButton) findSuggestedUsersButton.disabled = false;
     }
 
+    // YENİ: Sayfalama kontrollerini oluşturan ve yöneten fonksiyon
+    function renderPaginationControls() {
+        if (!paginationControlsContainer) return;
+        paginationControlsContainer.innerHTML = '';
+        
+        const totalItems = potentialFollowTargets.size;
+        if (totalItems <= USERS_PER_PAGE) return; // Sayfalama gerekmiyorsa gösterme
+
+        const totalPages = Math.ceil(totalItems / USERS_PER_PAGE);
+
+        const prevButton = document.createElement('button');
+        prevButton.textContent = '← Önceki';
+        prevButton.className = 'text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 py-1 px-3 rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed';
+        prevButton.disabled = currentPage === 1;
+        prevButton.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderSuggestedUsers();
+            }
+        });
+
+        const pageInfo = document.createElement('span');
+        pageInfo.textContent = `Sayfa ${currentPage} / ${totalPages}`;
+        pageInfo.className = 'text-sm text-gray-600';
+
+        const nextButton = document.createElement('button');
+        nextButton.textContent = 'Sonraki →';
+        nextButton.className = 'text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 py-1 px-3 rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed';
+        nextButton.disabled = currentPage === totalPages;
+        nextButton.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderSuggestedUsers();
+            }
+        });
+        
+        paginationControlsContainer.appendChild(prevButton);
+        paginationControlsContainer.appendChild(pageInfo);
+        paginationControlsContainer.appendChild(nextButton);
+    }
+    
+    // GÜNCELLENDİ: Sayfalama mantığını kullanacak ve basitleştirilmiş HTML üretecek şekilde değiştirildi.
     function renderSuggestedUsers() {
         if(!suggestedUsersList) return;
         suggestedUsersList.innerHTML = '';
+
         if (potentialFollowTargets.size === 0) {
             suggestedUsersList.innerHTML = '<p class="text-slate-400 italic text-center py-4">Filtreye uygun blog bulunamadı.</p>';
             if(goToStep3Button) goToStep3Button.style.display = 'none';
             if(selectAllStep2UsersButton) selectAllStep2UsersButton.style.display = 'none';
+            renderPaginationControls(); // Sayfalama kontrollerini temizle
             return;
         }
         const sortedTargets = Array.from(potentialFollowTargets.values()).sort((a, b) => (b.updated || 0) - (a.updated || 0));
         
-        sortedTargets.forEach(user => {
+        // --- YENİ SAYFALAMA MANTIĞI ---
+        const startIndex = (currentPage - 1) * USERS_PER_PAGE;
+        const endIndex = startIndex + USERS_PER_PAGE;
+        const paginatedTargets = sortedTargets.slice(startIndex, endIndex);
+
+        paginatedTargets.forEach(user => {
             const item = document.createElement('div');
-            item.className = `suggested-user-item ${currentDetailedUser === user.name ? 'detailed-view' : ''} ${user.frameColorClass || ''}`;
-            if (!user.isSelectable) {
-                item.classList.add('not-selectable');
-            }
+            item.className = `suggested-user-item ${currentDetailedUser === user.name ? 'detailed-view' : ''}`;
             item.dataset.blogName = user.name;
 
             item.innerHTML = `
                 <input type="checkbox" class="form-checkbox h-5 w-5 text-indigo-600 rounded mr-3 user-select-checkbox self-center flex-shrink-0" 
                        data-blog-name="${user.name}" 
-                       ${selectedUsersToProcessFromStep2.has(user.name) ? 'checked' : ''}
-                       ${!user.isSelectable ? 'disabled' : ''}>
+                       ${selectedUsersToProcessFromStep2.has(user.name) ? 'checked' : ''}>
                 <img src="${user.avatar}" alt="${user.name} avatar" class="user-avatar flex-shrink-0">
                 <div class="ml-2 overflow-hidden flex-grow">
                     <p class="text-sm font-semibold text-slate-800 truncate" title="${user.title ? user.title.replace(/"/g, '&quot;') : ''}">${user.title || user.name}</p>
                     <p class="text-xs text-indigo-500 truncate">${user.name}</p>
                     <p class="text-xs text-gray-500 mt-0.5">Son aktif: ${user.updated ? new Date(user.updated * 1000).toLocaleDateString() : 'Bilinmiyor'}</p>
-                    <p class="text-xs text-gray-400 mt-0.5">Siz: ${user.am_i_following_them ? 'Takip' : 'Takip Etmiyor'} | O: ${user.is_following_me ? 'Takip Ediyor' : 'Etmiyor'}</p>
                 </div>
             `;
             const checkbox = item.querySelector('.user-select-checkbox');
-            if (user.isSelectable) {
-                checkbox.addEventListener('change', (e) => {
-                    const blogNameToToggle = e.target.dataset.blogName;
-                    if (e.target.checked) {
-                        selectedUsersToProcessFromStep2.add(blogNameToToggle);
-                        item.classList.add('selected-for-action');
-                    } else {
-                        selectedUsersToProcessFromStep2.delete(blogNameToToggle);
-                        item.classList.remove('selected-for-action');
-                    }
-                    updateFollowAndLikeButtonState();
-                });
-            }
+            checkbox.addEventListener('change', (e) => {
+                const blogNameToToggle = e.target.dataset.blogName;
+                if (e.target.checked) {
+                    selectedUsersToProcessFromStep2.add(blogNameToToggle);
+                    item.classList.add('selected-for-action');
+                } else {
+                    selectedUsersToProcessFromStep2.delete(blogNameToToggle);
+                    item.classList.remove('selected-for-action');
+                }
+                updateFollowAndLikeButtonState();
+            });
             
             item.addEventListener('click', (e) => {
                  if (e.target.type !== 'checkbox' && !e.target.closest('a')) { 
@@ -621,23 +662,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         updateFollowAndLikeButtonState();
         if (potentialFollowTargets.size > 0 && selectAllStep2UsersButton) selectAllStep2UsersButton.style.display = 'inline-block';
+
+        renderPaginationControls(); // Her render sonrası sayfalama kontrollerini güncelle
     }
     
+    // GÜNCELLENDİ: Tüm sayfalardaki blogları seçecek şekilde mantık değiştirildi
     if(selectAllStep2UsersButton) {
         selectAllStep2UsersButton.addEventListener('click', () => {
-            const checkboxes = suggestedUsersList.querySelectorAll('.user-select-checkbox:not(:disabled)');
-            if (checkboxes.length === 0) return;
-            const allCurrentlySelected = Array.from(checkboxes).every(cb => cb.checked);
-            checkboxes.forEach(cb => {
-                if (cb.checked === allCurrentlySelected) cb.checked = !allCurrentlySelected;
-                else cb.checked = true;
-                cb.dispatchEvent(new Event('change'));
-            });
+            const allBlogNames = Array.from(potentialFollowTargets.keys());
+            if (allBlogNames.length === 0) return;
+
+            // Tüm blogların zaten seçili olup olmadığını kontrol et
+            const allCurrentlySelected = allBlogNames.every(name => selectedUsersToProcessFromStep2.has(name));
+
+            if (allCurrentlySelected) {
+                // Hepsi seçiliyse, hepsinin seçimini kaldır
+                selectedUsersToProcessFromStep2.clear();
+                logAction("Tüm blogların seçimi kaldırıldı.", "info");
+            } else {
+                // Değilse, tümünü seç
+                allBlogNames.forEach(name => selectedUsersToProcessFromStep2.add(name));
+                logAction(`Tüm ${allBlogNames.length} blog seçildi.`, "info");
+            }
+            
+            // Değişikliği yansıtmak için listeyi yeniden render et
+            renderSuggestedUsers();
         });
     }
     
     function updateFollowAndLikeButtonState() {
-        const selectableUserCount = Array.from(potentialFollowTargets.values()).filter(u => u.isSelectable && selectedUsersToProcessFromStep2.has(u.name)).length;
+        const selectableUserCount = selectedUsersToProcessFromStep2.size;
         
         if (followAndLikeButton) {
             followAndLikeButton.disabled = selectableUserCount === 0;
@@ -670,7 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function followAndLikeSelectedTargets() {
         const usersToActuallyProcess = Array.from(selectedUsersToProcessFromStep2)
             .map(name => potentialFollowTargets.get(name))
-            .filter(user => user && user.isSelectable);
+            .filter(user => user);
 
         if (usersToActuallyProcess.length === 0) {logAction("Takip edilecek geçerli blog seçilmedi.", "warn"); return;}
         if (isProcessingStep) { logAction("Zaten bir işlem devam ediyor.", "warn"); return; }
@@ -696,23 +750,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 continue;
             }
 
-            if (!userBlog.am_i_following_them) {
-                logAction(`"${userBlog.name}" takip ediliyor...`, "info");
-                try {
-                    await executeApiActionForModule('followTumblrBlog', { blog_url: userBlog.url }, true);
-                    totalFollowed++;
-                    logAction(`"${userBlog.name}" başarıyla takip edildi.`, "success");
-                    if(followedCountSpan) followedCountSpan.textContent = totalFollowed;
-                    const updatedUser = potentialFollowTargets.get(userBlog.name);
-                    if(updatedUser) updatedUser.am_i_following_them = true;
-                } catch (followError) {
-                    logAction(`"${userBlog.name}" takip edilemedi: ${followError.message}`, "error");
-                    if (followError.isUserError && followError.type === "auth") { 
-                        isProcessingStep = false; break; 
-                    }
+            logAction(`"${userBlog.name}" takip ediliyor...`, "info");
+            try {
+                await executeApiActionForModule('followTumblrBlog', { blog_url: userBlog.url }, true);
+                totalFollowed++;
+                logAction(`"${userBlog.name}" başarıyla takip edildi.`, "success");
+                if(followedCountSpan) followedCountSpan.textContent = totalFollowed;
+                
+                // Takip edilen kullanıcıyı artık potansiyel hedef olarak görmemek için listeden sil.
+                potentialFollowTargets.delete(userBlog.name);
+                selectedUsersToProcessFromStep2.delete(userBlog.name);
+
+            } catch (followError) {
+                logAction(`"${userBlog.name}" takip edilemedi: ${followError.message}`, "error");
+                if (followError.isUserError && followError.type === "auth") { 
+                    isProcessingStep = false; break; 
                 }
-            } else {
-                 logAction(`"${userBlog.name}" zaten takip ediliyor, takip işlemi atlandı.`, "info");
             }
             
             if (isProcessingStep && usersToActuallyProcess.indexOf(userBlog) < usersToActuallyProcess.length -1) {
@@ -721,7 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (likesPerUserCountTarget > 0 && isProcessingStep) {
-                logAction(`"${userBlog.name}" için ${likesPerUserCountTarget} orijinal gönderi beğenilecek (eşzamanlı en fazla ${concurrencyLimitLikes})...`, "info");
+                logAction(`"${userBlog.name}" için ${likesPerUserCountTarget} orijinal gönderi beğenilecek...`, "info");
                 let likedForThisUserCount = 0;
                 let fetchOffset = 0;
                 const originalPostsForLiking = [];
@@ -804,6 +857,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             processedUserCountOuter++;
             if(step3ProgressBar) updateProgressBar(step3ProgressBar, (processedUserCountOuter / usersToActuallyProcess.length) * 100);
+            
+            // Her kullanıcı işlendikten sonra listeyi güncelle
+            if (currentPage > Math.ceil(potentialFollowTargets.size / USERS_PER_PAGE)) {
+                 currentPage = Math.max(1, Math.ceil(potentialFollowTargets.size / USERS_PER_PAGE));
+            }
+            renderSuggestedUsers();
         } 
         
         if (isProcessingStep) {
@@ -816,12 +875,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (limitsData) displayUserLimits(limitsData);
         } catch (error) { logAction(`Kullanıcı limitleri güncellenemedi: ${error.message}`, "warn"); }
         
+        // İşlem bittikten sonra son kez listeyi render et
         renderSuggestedUsers(); 
         if(followAndLikeButton) followAndLikeButton.disabled = false;
         if(removeDefaultAvatarUsersButton) removeDefaultAvatarUsersButton.disabled = false; 
     }
 
-    // GÜNCELLENDİ: `inactive_unfollower` scriptindeki worker havuzu mantığı buraya uyarlandı
     async function handleRemoveDefaultAvatarUsers() {
         if (isProcessingStep) {
             logAction("Zaten bir işlem devam ediyor, lütfen bekleyin.", "warn");
@@ -862,11 +921,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         logAction(`'${blogName}' varsayılan avatar kullanıyor. Seçimden kaldırılıyor.`, "info");
                         
                         selectedUsersToProcessFromStep2.delete(blogName);
-                        const checkbox = suggestedUsersList.querySelector(`.user-select-checkbox[data-blog-name="${blogName}"]`);
-                        if (checkbox) {
-                            checkbox.checked = false;
-                            checkbox.closest('.suggested-user-item')?.classList.remove('selected-for-action');
-                        }
+                        // Checkbox'ı güncellemek için listeyi yeniden render etmek en temizi.
                     }
                 } catch (error) {
                     logAction(`Avatar tarama hatası (${blogName}): ${error.message}`, 'debug');
@@ -874,7 +929,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     processedCount++;
                     if(avatarScanProgressBar) updateProgressBar(avatarScanProgressBar, (processedCount / totalToScan) * 100);
                     if(avatarScanProgressText) avatarScanProgressText.textContent = `${processedCount}/${totalToScan}`;
-                    await delay(500); // Her işçi her istekten sonra 0.5 saniye bekler
+                    await delay(500);
                 }
             }
         };
@@ -887,10 +942,11 @@ document.addEventListener('DOMContentLoaded', () => {
         await Promise.all(workers);
 
         logAction(`Avatar tarama tamamlandı. ${deselectedCount} blog varsayılan avatar kullandığı için seçimden kaldırıldı.`, "system_success");
-        updateFollowAndLikeButtonState();
+        
+        // Değişiklikleri yansıtmak için listeyi yeniden render et
+        renderSuggestedUsers();
 
         isProcessingStep = false;
-        removeDefaultAvatarUsersButton.disabled = (selectedUsersToProcessFromStep2.size === 0);
         if (avatarScanProgressContainer) setTimeout(() => { avatarScanProgressContainer.style.display = 'none'; }, 2000);
     }
 

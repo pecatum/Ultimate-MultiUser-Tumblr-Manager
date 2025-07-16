@@ -126,18 +126,21 @@
                         <label for="bulkScheduleInterval" class="block text-sm font-medium text-gray-700">Rebloglar Arası Süre (Dakika - Opsiyonel):</label>
                         <input type="number" id="bulkScheduleInterval" name="bulkScheduleInterval" min="0" placeholder="Örn: 30 (Boş bırakılırsa hepsi aynı anda sıraya alınır)" class="mt-1 block w-full md:w-1/2 p-2 border border-gray-300 rounded-md shadow-sm">
                     </div>
-                </div>
+                    <div class="mt-4">
+                        <label for="randomizeTimeSlider" class="block text-sm font-medium text-gray-700">Nihai Gönderim Zamanını Rastgele Dağıt (± Dakika): <span id="randomizeTimeValue" class="font-bold text-indigo-600 text-base">0</span></label>
+                        <input type="range" id="randomizeTimeSlider" min="0" max="30" step="5" value="0" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <p class="text-xs text-slate-500 mt-1">Her bir bloğun planlama başlangıç zamanını, belirlenen ilk yayın zamanına göre rastgele ± seçilen dakika kadar kaydırır. '0' ise bu özellik kapalıdır.</p>
+                    </div>
+                    </div>
                 <div id="individualScheduleOptionsContainer" class="space-y-6 mb-6 max-h-[60vh] overflow-y-auto custom-scroll" style="display:none;">
                      <p class="text-slate-500 italic p-4 text-center">Her hesap ve reblog için planlama, yorum ve etiket ayarları burada listelenecektir.</p>
                 </div>
                 
-                <!-- DEĞİŞİKLİK BURADA BAŞLIYOR -->
                 <div class="my-6 p-4 border rounded-lg bg-slate-50 shadow-inner">
                     <label for="workerCountSlider" class="block text-sm font-medium text-gray-800">Paralel İşlem Kapasitesi (Liderin yöneteceği işçi sayısı): <span id="workerCountValue" class="font-bold text-indigo-600 text-base">10</span></label>
                     <input type="range" id="workerCountSlider" min="5" max="25" value="10" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <p class="text-xs text-slate-500 mt-1">Aynı anda kaç reblog işleminin yapılacağını belirler. Yüksek değerler işlemi hızlandırabilir ancak API limitlerine takılma riskini artırabilir.</p>
                 </div>
-                <!-- DEĞİŞİKLİK BURADA BİTİYOR -->
 
                 <div class="progress-bar-container mt-4 h-2 mb-2"><div id="finalActionProgressBar" class="progress-bar bg-green-500"></div></div>
                 <button id="executeFinalActionButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-5 rounded-lg shadow-md disabled:opacity-50">
