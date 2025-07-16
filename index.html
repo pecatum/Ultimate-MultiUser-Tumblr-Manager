@@ -15,45 +15,33 @@
         .user-info-card.visible {
             opacity: 1; transform: translateY(0);
         }
-        .actions-card {
-            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
-            opacity: 0; transform: translateY(20px);
-        }
-        .actions-card.visible {
-            opacity: 1; transform: translateY(0);
-        }
         #actionResultOutput {
             margin-top: 1.5rem; padding: 1rem; background-color: #f8fafc;
             border: 1px solid #e2e8f0; border-radius: 0.5rem;
             max-height: 400px; overflow-y: auto;
             white-space: pre-wrap; word-break: break-all; font-size: 0.875rem;
         }
-        .limit-bar-label { font-size: 0.8rem; }
         .token-status {
-            font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            margin-top: 0.5rem;
+            font-size: 0.75rem; padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem; margin-top: 0.5rem;
             display: inline-block;
         }
         .token-status.success { background-color: #dcfce7; color: #166534; border: 1px solid #86efac;}
         .token-status.error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;}
         .token-status.loading { background-color: #e0e7ff; color: #3730a3; border: 1px solid #a5b4fc;}
         .reauth-button {
-            background-color: #f59e0b; /* amber-500 */
-            color: white;
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-            border-radius: 0.25rem;
-            margin-left: 0.5rem;
-            cursor: pointer;
+            background-color: #f59e0b; color: white;
+            padding: 0.25rem 0.5rem; font-size: 0.75rem;
+            border-radius: 0.25rem; margin-left: 0.5rem; cursor: pointer;
         }
-        .reauth-button:hover { background-color: #d97706; /* amber-600 */ }
+        .reauth-button:hover { background-color: #d97706; }
 
-        /* Progress Bar Styles from follow_suggester.html */
         .progress-bar-container { background-color: #e9ecef; border-radius: 9999px; overflow: hidden; height: 0.625rem; /* h-2.5 Tailwind */ }
         .progress-bar { background-color: #3b82f6; /* Default blue, can be overridden */ height: 100%; text-align: center; transition: width 0.4s ease-in-out; }
-
+        
+        /* Dropdown for API Actions from previous request */
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -71,21 +59,23 @@
     </nav>
 
     <main class="container mx-auto p-4 sm:p-6 lg:p-8">
-        <div id="multiUserSelectionArea" class="mb-6 p-4 bg-white rounded-xl shadow-lg">
-            <h3 class="text-lg font-semibold text-slate-700 mb-3">Kullanıcıları Seçin:</h3>
-            <div id="userCheckboxesContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                </div>
+        
+        <div class="mb-6 p-4 bg-white rounded-xl shadow-lg">
+             <h3 class="text-lg font-semibold text-slate-700 mb-3">Kayıtlı Hesaplar</h3>
+             <button id="refreshAllLimitsButton" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition duration-150 w-full sm:w-auto">
+                Tüm Limitleri Yenile
+            </button>
         </div>
 
-        <div id="userInfoCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div id="userInfoCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
              <div id="actionsAndResultsContainer" class="md:col-span-3">
-                 <div id="actionsContainer" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg actions-card mb-6">
-                    <h3 class="text-xl font-semibold text-slate-700 mb-4">İşlemler</h3>
+                 <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg mb-6">
+                    <h3 class="text-xl font-semibold text-slate-700 mb-4">Modüller ve İşlemler</h3>
                     <div id="actionsMenuDynamic" class="space-y-3">
-                        <p id="noActionsMessage" class="text-slate-500 italic">Lütfen işlem yapmak için yukarıdan kullanıcı(lar) seçin veya uygun eylem bulunamadı.</p>
+                        <p id="noActionsMessage" class="text-slate-500 italic">Uygun eylem bulunamadı veya yüklenemedi.</p>
                     </div>
                 </div>
                 <div id="actionResultOutputContainer" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg" style="display:none;">
@@ -113,37 +103,30 @@
     </main>
 
     <script>
+        // All elements are the same as the previous version.
         const loadingIndicator = document.getElementById('loadingIndicator');
         const errorMessageContainer = document.getElementById('errorMessageContainer');
         const errorText = document.getElementById('errorText');
         const closeErrorButton = document.getElementById('closeErrorButton');
-        
-        const actionsContainer = document.getElementById('actionsContainer');
         const actionsMenuDynamic = document.getElementById('actionsMenuDynamic');
         const noActionsMessage = document.getElementById('noActionsMessage');
         const actionResultOutputContainer = document.getElementById('actionResultOutputContainer');
         const actionResultOutput = document.getElementById('actionResultOutput');
-
         const addNewUserButton = document.getElementById('addNewUserButton');
-        const userCheckboxesContainer = document.getElementById('userCheckboxesContainer');
         const userInfoCardsContainer = document.getElementById('userInfoCardsContainer');
+        const refreshAllLimitsButton = document.getElementById('refreshAllLimitsButton');
 
-        const NEW_ACCOUNT_VALUE = "__NEW_ACCOUNT__";
         let availableActions = [];
-        let selectedAppUsernames = new Set();
-        const USER_LIMIT_REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes
-
-        actionsContainer.classList.remove('visible');
-
+        let allRegisteredUsers = [];
 
         async function fetchRegisteredUsersFromServer() {
-            console.log("Kayıtlı kullanıcılar sunucudan çekiliyor...");
             try {
                 const response = await fetch('/api/users');
-                if (!response.ok) throw new Error(`Sunucu hatası (${response.status}) kullanıcıları çekerken.`);
-                return await response.json();
+                if (!response.ok) throw new Error(`Sunucu hatası (${response.status})`);
+                const users = await response.json();
+                allRegisteredUsers = users;
+                return users;
             } catch (error) {
-                console.error("Kullanıcı listesi çekilirken hata:", error);
                 showError(error.message || "Kayıtlı kullanıcı listesi yüklenemedi.");
                 return [];
             }
@@ -157,150 +140,158 @@
 
             const card = document.createElement('div');
             card.id = cardId;
-            card.className = 'bg-white p-6 sm:p-8 rounded-xl shadow-lg user-info-card';
+            card.className = 'bg-white p-4 rounded-xl shadow-lg user-info-card';
             
-            // HTML structure for user info and new limits display
+            // This HTML structure is from the previous request and remains the same.
             card.innerHTML = `
-                <div class="flex flex-col items-center text-center">
-                    <img data-field="userProfilePic" src="https://placehold.co/128x128/e2e8f0/cbd5e0?text=Profil" alt="Profil Fotoğrafı" class="w-24 h-24 sm:w-32 sm:h-32 rounded-full mb-6 border-4 border-slate-200 object-cover">
-                    <h2 data-field="userNameDisplay" class="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">Yükleniyor...</h2>
-                    <p data-field="userBlogUrlContainer" class="text-sm text-indigo-600 hover:text-indigo-800 mb-6 break-all">
-                        <a data-field="userBlogUrl" href="#" target="_blank">...</a>
-                    </p>
-                    <div class="grid grid-cols-2 gap-3 w-full mb-4">
-                        <div class="bg-slate-50 p-3 rounded-lg text-center"><span data-field="followerCount" class="block text-xl font-bold text-indigo-600">-</span><p class="text-xs text-slate-600">Takipçi</p></div>
-                        <div class="bg-slate-50 p-3 rounded-lg text-center"><span data-field="followingCount" class="block text-xl font-bold text-indigo-600">-</span><p class="text-xs text-slate-600">Takip Edilen</p></div>
-                        <div class="bg-slate-50 p-3 rounded-lg text-center"><span data-field="userLikesCount" class="block text-xl font-bold text-indigo-600">-</span><p class="text-xs text-slate-600">Beğeni Sayısı</p></div>
-                        <div class="bg-slate-50 p-3 rounded-lg text-center"><span data-field="userPostsCount" class="block text-xl font-bold text-indigo-600">-</span><p class="text-xs text-slate-600">Gönderi Sayısı</p></div>
+                <div class="flex items-center space-x-4">
+                    <img data-field="userProfilePic" src="https://placehold.co/64x64/e2e8f0/cbd5e0?text=..." alt="Profil" class="w-16 h-16 rounded-full border-2 border-slate-200 object-cover">
+                    <div class="flex-1 min-w-0">
+                        <h2 data-field="userNameDisplay" class="text-lg font-bold text-slate-800 truncate">Yükleniyor...</h2>
+                        <p class="text-xs text-indigo-600 hover:text-indigo-800 truncate">
+                            <a data-field="userBlogUrl" href="#" target="_blank">...</a>
+                        </p>
+                         <div data-field="tokenStatusContainer" class="w-full text-left mt-1"></div>
                     </div>
-                    <div data-field="tokenStatusContainer" class="w-full text-center mb-3">
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-center text-xs my-3">
+                    <div class="bg-slate-50 p-1.5 rounded-md"><span data-field="followerCount" class="block font-bold text-slate-700">-</span><p class="text-slate-500">Takipçi</p></div>
+                    <div class="bg-slate-50 p-1.5 rounded-md"><span data-field="followingCount" class="block font-bold text-slate-700">-</span><p class="text-slate-500">Takip</p></div>
+                    <div class="bg-slate-50 p-1.5 rounded-md"><span data-field="userPostsCount" class="block font-bold text-slate-700">-</span><p class="text-slate-500">Gönderi</p></div>
+                    <div class="bg-slate-50 p-1.5 rounded-md"><span data-field="userLikesCount" class="block font-bold text-slate-700">-</span><p class="text-slate-500">Beğeni</p></div>
+                </div>
+                <h4 class="text-sm font-semibold text-slate-700 mb-1.5">Günlük Limitler:</h4>
+                <div data-field="limitsContent" class="w-full space-y-2 text-sm">
+                    <p class="text-slate-400 italic text-xs" data-limit-loading-message>Limitler yükleniyor...</p>
+                    <div data-limit-type="follows" style="display: none;">
+                        <div class="flex justify-between items-center text-xs mb-0.5">
+                            <span class="text-slate-600 font-medium">Takip Etme</span>
+                            <span class="text-slate-500" data-limit-usage-text>0 / 0</span>
                         </div>
-                    
-                    <h4 class="text-md font-semibold text-slate-700 mt-4 mb-2">Günlük Limitler:</h4>
-                    <div data-field="limitsContent" class="w-full space-y-3 text-sm">
-                        <p class="text-slate-400 italic" data-limit-loading-message>Limitler yükleniyor...</p>
-                        
-                        <div data-limit-type="follows" style="display: none;">
-                            <div class="flex justify-between items-center text-xs mb-0.5">
-                                <span class="text-slate-500 font-medium">Takip Etme</span>
-                                <span class="text-xs text-slate-500" data-limit-remaining-text></span>
-                            </div>
-                            <div class="flex justify-between items-center text-xs mb-1">
-                                <span class="text-slate-700 font-medium bg-slate-100 px-1.5 py-0.5 rounded-md border" data-limit-usage-text>0 / 0</span>
-                                <p class="text-xs text-slate-400" data-limit-reset-text></p>
-                            </div>
-                            <div class="progress-bar-container"><div class="progress-bar bg-sky-500" data-limit-progress-bar style="width: 0%;"></div></div>
-                        </div>
-
-                        <div data-limit-type="likes" style="display: none;">
-                            <div class="flex justify-between items-center text-xs mb-0.5">
-                                <span class="text-slate-500 font-medium">Beğeni</span>
-                                <span class="text-xs text-slate-500" data-limit-remaining-text></span>
-                            </div>
-                            <div class="flex justify-between items-center text-xs mb-1">
-                                <span class="text-slate-700 font-medium bg-slate-100 px-1.5 py-0.5 rounded-md border" data-limit-usage-text>0 / 0</span>
-                                <p class="text-xs text-slate-400" data-limit-reset-text></p>
-                            </div>
-                            <div class="progress-bar-container"><div class="progress-bar bg-pink-500" data-limit-progress-bar style="width: 0%;"></div></div>
-                        </div>
-                        <p class="text-red-500 italic" data-limit-error-message style="display: none;">Limit bilgileri alınamadı.</p>
+                        <div class="progress-bar-container"><div class="progress-bar bg-sky-500" data-limit-progress-bar style="width: 0%;"></div></div>
                     </div>
+                    <div data-limit-type="likes" style="display: none;">
+                        <div class="flex justify-between items-center text-xs mb-0.5">
+                            <span class="text-slate-600 font-medium">Beğeni</span>
+                            <span class="text-slate-500" data-limit-usage-text>0 / 0</span>
+                        </div>
+                        <div class="progress-bar-container"><div class="progress-bar bg-pink-500" data-limit-progress-bar style="width: 0%;"></div></div>
+                    </div>
+                    <p class="text-red-500 italic text-xs" data-limit-error-message style="display: none;">Limit bilgileri alınamadı.</p>
                 </div>
             `;
             userInfoCardsContainer.appendChild(card);
-            requestAnimationFrame(() => {
-                card.classList.add('visible');
-            });
+            requestAnimationFrame(() => card.classList.add('visible'));
             return card;
         }
-        
+
         function displayUserInfoInCard(cardElement, userData) {
             if (!cardElement || !userData || !userData.blog || !userData.user) {
-                const username = cardElement.id.replace('user-card-','').replace(/_/g, ' ');
-                cardElement.querySelector('[data-field="userNameDisplay"]').textContent = "Veri Hatası";
-                updateTokenStatusInCard(cardElement, 'error', `Kullanıcı bilgileri alınamadı (${username}).`);
                 return;
             }
             const blogData = userData.blog; const userDataUser = userData.user;
 
             cardElement.querySelector('[data-field="userProfilePic"]').src = blogData.avatar?.[0]?.url || 'https://placehold.co/128x128/e2e8f0/cbd5e0?text=?';
-            cardElement.querySelector('[data-field="userNameDisplay"]').textContent = blogData.title || blogData.name || 'Kullanıcı Adı';
+            cardElement.querySelector('[data-field="userNameDisplay"]').textContent = blogData.title || blogData.name || '...';
             const blogUrlLink = cardElement.querySelector('[data-field="userBlogUrl"]');
             blogUrlLink.href = blogData.url || '#';
-            blogUrlLink.textContent = blogData.url ? blogData.url.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '') : 'URL Yok';
+            blogUrlLink.textContent = blogData.url ? blogData.url.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '') : '...';
             cardElement.querySelector('[data-field="followerCount"]').textContent = blogData.followers?.toLocaleString() || '0';
             cardElement.querySelector('[data-field="userPostsCount"]').textContent = blogData.posts?.toLocaleString() || '0';
             cardElement.querySelector('[data-field="followingCount"]').textContent = userDataUser.following?.toLocaleString() || '0';
             cardElement.querySelector('[data-field="userLikesCount"]').textContent = userDataUser.likes?.toLocaleString() || '0';
         }
 
+        /**
+         * GÜNCELLENDİ: Bu fonksiyonun içi, dashboard_liker_bot_client.js'deki esnek mantıkla değiştirildi.
+         */
         function displayUserLimitsInCard(cardElement, limitsData) {
             const limitsContent = cardElement.querySelector('[data-field="limitsContent"]');
             if (!limitsContent) return;
 
+            // DOM elementlerini al
             const loadingMessage = limitsContent.querySelector('[data-limit-loading-message]');
             const errorMessage = limitsContent.querySelector('[data-limit-error-message]');
             const followsElement = limitsContent.querySelector('[data-limit-type="follows"]');
             const likesElement = limitsContent.querySelector('[data-limit-type="likes"]');
 
+            // Başlangıçta hepsini temizle
             loadingMessage.style.display = 'none';
             errorMessage.style.display = 'none';
             followsElement.style.display = 'none';
             likesElement.style.display = 'none';
 
-            if (!limitsData || !limitsData.usage || !limitsData.limits) {
+            // dashboard_liker_bot_client.js'den gelen veri işleme mantığı
+            let likesUsed = 0, likesTotal = 1000;
+            let followsUsed = 0, followsTotal = 200;
+            let dataParsedSuccessfully = false;
+
+            if (limitsData) {
+                if (limitsData.likes && typeof limitsData.likes.limit !== 'undefined' && typeof limitsData.likes.remaining !== 'undefined') {
+                    likesTotal = parseInt(limitsData.likes.limit, 10) || likesTotal;
+                    likesUsed = Math.max(0, likesTotal - (parseInt(limitsData.likes.remaining, 10) || 0));
+                    dataParsedSuccessfully = true;
+                }
+                if (limitsData.follows && typeof limitsData.follows.limit !== 'undefined' && typeof limitsData.follows.remaining !== 'undefined') {
+                    followsTotal = parseInt(limitsData.follows.limit, 10) || followsTotal;
+                    followsUsed = Math.max(0, followsTotal - (parseInt(limitsData.follows.remaining, 10) || 0));
+                    dataParsedSuccessfully = true;
+                }
+                else if (limitsData.usage && limitsData.limits) { 
+                    if (limitsData.usage.likes && limitsData.limits.likes) {
+                        likesUsed = parseInt(limitsData.usage.likes.count, 10) || 0;
+                        likesTotal = parseInt(limitsData.limits.likes.total, 10) || likesTotal;
+                        dataParsedSuccessfully = true;
+                    }
+                    if (limitsData.usage.follows && limitsData.limits.follows) {
+                        followsUsed = parseInt(limitsData.usage.follows.count, 10) || 0;
+                        followsTotal = parseInt(limitsData.limits.follows.total, 10) || followsTotal;
+                        dataParsedSuccessfully = true;
+                    }
+                }
+                 else if (limitsData.user) { 
+                    if (typeof limitsData.user.likes !== 'undefined' && typeof limitsData.user.likes_limit !== 'undefined') {
+                        likesUsed = parseInt(limitsData.user.likes, 10) || 0;
+                        likesTotal = parseInt(limitsData.user.likes_limit, 10) || likesTotal;
+                        dataParsedSuccessfully = true;
+                    }
+                    if (typeof limitsData.user.following_limit !== 'undefined') {
+                        followsTotal = parseInt(limitsData.user.following_limit, 10) || followsTotal;
+                        followsUsed = 0;
+                        dataParsedSuccessfully = true;
+                    }
+                  }
+                 else if (typeof limitsData.likes_used !== 'undefined' && typeof limitsData.likes_total !== 'undefined') { 
+                    likesUsed = parseInt(limitsData.likes_used, 10) || 0;
+                    likesTotal = parseInt(limitsData.likes_total, 10) || likesTotal;
+                    if (typeof limitsData.follows_used !== 'undefined' && typeof limitsData.follows_total !== 'undefined') {
+                        followsUsed = parseInt(limitsData.follows_used, 10) || 0;
+                        followsTotal = parseInt(limitsData.follows_total, 10) || followsTotal;
+                    }
+                    dataParsedSuccessfully = true;
+                 }
+            }
+
+            if (!dataParsedSuccessfully) {
+                errorMessage.textContent = 'Limit bilgileri alınamadı veya format anlaşılamadı.';
                 errorMessage.style.display = 'block';
-                errorMessage.textContent = 'Limit bilgileri alınamadı veya eksik.';
-                console.warn("displayUserLimitsInCard: limitsData is missing or incomplete", limitsData);
                 return;
             }
 
-            const updateLimitElement = (element, limitInfo, usageInfo, knownTotal) => {
-                if (!element || !limitInfo || !usageInfo) {
-                     // If specific limit (e.g. follows) is missing, keep its section hidden
-                    if(element) element.style.display = 'none';
-                    return false; 
-                }
+            // Verileri DOM'a yazdır
+            const updateLimitElement = (element, used, total) => {
+                if (!element) return;
                 element.style.display = 'block';
-                const total = parseInt(limitInfo.total, 10) || parseInt(knownTotal, 10) || 0;
-                const used = parseInt(usageInfo.count, 10) || 0;
-                const remaining = total > 0 ? Math.max(0, total - used) : (total - used) ; // API might return negative remaining
-
-                element.querySelector('[data-limit-usage-text]').textContent = `${used.toLocaleString()} / ${total.toLocaleString()}`;
-                element.querySelector('[data-limit-remaining-text]').textContent = `${remaining.toLocaleString()} kaldı`;
-                
-                const progressBar = element.querySelector('[data-limit-progress-bar]');
                 const percentage = total > 0 ? (used / total) * 100 : 0;
-                progressBar.style.width = `${Math.max(0, Math.min(100, percentage))}%`;
-
-                const resetTextElement = element.querySelector('[data-limit-reset-text]');
-                if (limitInfo.reset_at) {
-                    try {
-                        // reset_at can be a full ISO string or seconds timestamp
-                        const resetDate = new Date(isNaN(limitInfo.reset_at) ? limitInfo.reset_at : limitInfo.reset_at * 1000);
-                        resetTextElement.textContent = `Sıfırlanma: ~${resetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                    } catch (e) {
-                        resetTextElement.textContent = `Sıfırlanma: ?`;
-                    }
-                } else {
-                    resetTextElement.textContent = "";
-                }
-                return true;
+                element.querySelector('[data-limit-usage-text]').textContent = `${used.toLocaleString()} / ${total.toLocaleString()}`;
+                element.querySelector('[data-limit-progress-bar]').style.width = `${Math.min(100, percentage)}%`;
             };
 
-            let limitsDisplayed = 0;
-            if (updateLimitElement(followsElement, limitsData.limits.follows, limitsData.usage.follows, 200)) {
-                limitsDisplayed++;
-            }
-            if (updateLimitElement(likesElement, limitsData.limits.likes, limitsData.usage.likes, 1000)) {
-                limitsDisplayed++;
-            }
-            
-            if (limitsDisplayed === 0) { // If neither follow nor like limits were displayed
-                 errorMessage.style.display = 'block';
-                 errorMessage.textContent = 'Gösterilecek bilinen limit türü (takip/beğeni) bulunamadı.';
-            }
+            updateLimitElement(likesElement, likesUsed, likesTotal);
+            updateLimitElement(followsElement, followsUsed, followsTotal);
         }
+
+        // --- Diğer Tüm Fonksiyonlar (Önceki versiyon ile aynı) ---
 
         function updateTokenStatusInCard(cardElement, statusType, message, appUsernameForReauth = null) {
             const tokenStatusContainer = cardElement.querySelector('[data-field="tokenStatusContainer"]');
@@ -310,7 +301,6 @@
             if (statusType === 'loading') statusClass += 'loading';
             else if (statusType === 'success') statusClass += 'success';
             else if (statusType === 'error') statusClass += 'error';
-            else statusClass += 'bg-slate-100 text-slate-600';
 
             let reauthButtonHtml = '';
             if (statusType === 'error' && appUsernameForReauth) {
@@ -324,286 +314,138 @@
             window.location.href = `/login.html?flow=reauth&user_to_reauth=${encodeURIComponent(appUsername)}`;
         }
 
-
         async function fetchTumblrUserDataForAppUser(appUsername, cardElement) {
-            console.log(`'${appUsername}' için kullanıcı verileri çekiliyor...`);
+            updateTokenStatusInCard(cardElement, 'loading', 'Veriler yükleniyor...');
             try {
                 const response = await fetch(`/api/tumblr-data?user=${encodeURIComponent(appUsername)}`);
                 const responseData = await response.json(); 
-
                 if (!response.ok) {
-                    const errorMessage = responseData.error || responseData.message || `Sunucu hatası (${response.status}) kullanıcı verilerini çekerken.`;
-                    if (cardElement && responseData.needsReAuth) {
-                        updateTokenStatusInCard(cardElement, 'error', `Token geçersiz: ${errorMessage}`, appUsername);
-                    } else if (cardElement) {
-                        updateTokenStatusInCard(cardElement, 'error', `Veri hatası: ${errorMessage}`);
-                    }
+                    const errorMessage = responseData.error || `Sunucu hatası (${response.status})`;
+                    updateTokenStatusInCard(cardElement, 'error', `Veri hatası: ${errorMessage}`, appUsername);
                     throw new Error(errorMessage); 
                 }
-                if (cardElement) {
-                     updateTokenStatusInCard(cardElement, 'success', 'Token geçerli.');
-                }
-                return responseData; 
+                updateTokenStatusInCard(cardElement, 'success', 'Token geçerli.');
+                displayUserInfoInCard(cardElement, responseData);
             } catch (error) {
-                console.error(`'${appUsername}' için veri çekilirken hata:`, error);
-                if (!cardElement) showError(error.message || "Kullanıcı verileri alınamadı.");
-                throw error; 
+                // error already shown in card
             }
         }
         
         async function fetchUserLimitsForAppUser(appUsername, cardElement) {
-            console.log(`'${appUsername}' için kullanıcı limitleri çekiliyor (Kart: ${cardElement ? 'evet' : 'hayır'})...`);
             try {
                 const response = await fetch(`/api/user-limits?user=${encodeURIComponent(appUsername)}`);
                 const responseData = await response.json();
-
                 if (!response.ok) {
-                    const errorMessage = responseData.error || responseData.message || `Sunucu hatası (${response.status}) kullanıcı limitlerini çekerken.`;
-                     if (cardElement && responseData.needsReAuth) { 
-                        updateTokenStatusInCard(cardElement, 'error', `Token geçersiz (limitler): ${errorMessage}`, appUsername);
-                    } else if (cardElement) {
-                         // Display a generic error for limits in the limits section if token seems okay
-                        const limitsContent = cardElement.querySelector('[data-field="limitsContent"]');
-                        if (limitsContent) {
-                            limitsContent.querySelector('[data-limit-loading-message]').style.display = 'none';
-                            const errorMsgElement = limitsContent.querySelector('[data-limit-error-message]');
-                            errorMsgElement.textContent = `Limit hatası: ${errorMessage}`;
-                            errorMsgElement.style.display = 'block';
-                        }
-                    }
-                    throw new Error(errorMessage);
+                    throw new Error(responseData.error || `Limit alınamadı (${response.status})`);
                 }
-                return responseData; 
+                displayUserLimitsInCard(cardElement, responseData); 
             } catch (error) {
-                console.error(`'${appUsername}' için limit çekilirken hata:`, error);
-                if (cardElement) {
-                    const limitsContent = cardElement.querySelector('[data-field="limitsContent"]');
-                     if (limitsContent) {
-                        limitsContent.querySelector('[data-limit-loading-message]').style.display = 'none';
-                        const errorMsgElement = limitsContent.querySelector('[data-limit-error-message]');
-                        errorMsgElement.textContent = error.message || "Kullanıcı limitleri API'den alınamadı.";
-                        errorMsgElement.style.display = 'block';
-                    }
-                } else {
-                    showError(error.message || "Kullanıcı limitleri alınamadı.");
+                const limitsContent = cardElement.querySelector('[data-field="limitsContent"]');
+                if (limitsContent) {
+                    limitsContent.querySelector('[data-limit-loading-message]').style.display = 'none';
+                    const errorMsgElement = limitsContent.querySelector('[data-limit-error-message]');
+                    errorMsgElement.textContent = error.message || "Kullanıcı limitleri alınamadı.";
+                    errorMsgElement.style.display = 'block';
                 }
-                throw error;
             }
         }
-
-        async function populateUserCheckboxes() { 
+        
+        async function populateAllUserCards() {
+            showLoading();
             const users = await fetchRegisteredUsersFromServer();
-            userCheckboxesContainer.innerHTML = ''; 
-
-            if (users && users.length > 0) {
-                users.forEach(user => {
-                    const label = document.createElement('label');
-                    label.className = 'flex items-center space-x-2 p-2 border rounded-md hover:bg-slate-50 cursor-pointer transition-colors duration-150';
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.value = user.appUsername;
-                    checkbox.className = 'form-checkbox h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500 user-select-checkbox';
-                    checkbox.addEventListener('change', handleUserSelectionChange);
-
-                    const span = document.createElement('span');
-                    span.className = 'text-sm text-slate-700 truncate'
-                    span.title = user.tumblrBlogName || user.appUsername;
-                    span.textContent = user.tumblrBlogName || user.appUsername;
-
-                    label.appendChild(checkbox);
-                    label.appendChild(span);
-                    userCheckboxesContainer.appendChild(label);
-                });
-            } else {
-                userCheckboxesContainer.innerHTML = '<p class="text-slate-500 italic col-span-full">Kayıtlı kullanıcı bulunamadı. Lütfen "Yeni Hesap Ekle" butonu ile hesap ekleyin.</p>';
-            }
-        }
-
-        async function handleUserSelectionChange(event) {
-            const checkbox = event.target;
-            const appUsername = checkbox.value;
-            const cardId = `user-card-${appUsername.replace(/\W/g, '_')}`;
-            let cardElement = document.getElementById(cardId);
-
-            actionResultOutputContainer.style.display = 'none';
-            hideError(); 
-
-            if (checkbox.checked) {
-                selectedAppUsernames.add(appUsername);
-                if (!cardElement) {
-                    cardElement = createUserInfoCardElement(appUsername);
-                } else {
-                    cardElement.style.display = '';
-                    cardElement.classList.add('visible');
-                }
-                
-                showLoading(); 
-                if (cardElement) {
-                    updateTokenStatusInCard(cardElement, 'loading', 'Veriler yükleniyor...'); 
-                    const limitsContent = cardElement.querySelector('[data-field="limitsContent"]');
-                    if (limitsContent) {
-                        limitsContent.querySelector('[data-limit-loading-message]').style.display = 'block';
-                        limitsContent.querySelector('[data-limit-error-message]').style.display = 'none';
-                        limitsContent.querySelector('[data-limit-type="follows"]').style.display = 'none';
-                        limitsContent.querySelector('[data-limit-type="likes"]').style.display = 'none';
-                    }
-                }
-
-
-                try {
-                    const userData = await fetchTumblrUserDataForAppUser(appUsername, cardElement); 
-                    if (userData) { 
-                        displayUserInfoInCard(cardElement, userData);
-                        const limitsData = await fetchUserLimitsForAppUser(appUsername, cardElement); 
-                        if (limitsData) {
-                            displayUserLimitsInCard(cardElement, limitsData);
-                        } 
-                        // errors in fetchUserLimitsForAppUser are handled inside it for card display
-                    } else {
-                        if (cardElement) {
-                            cardElement.querySelector('[data-field="userNameDisplay"]').textContent = "Veri Yüklenemedi";
-                            const limitsContent = cardElement.querySelector('[data-field="limitsContent"]');
-                             if (limitsContent) {
-                                limitsContent.querySelector('[data-limit-loading-message]').style.display = 'none';
-                                const errorMsgElement = limitsContent.querySelector('[data-limit-error-message]');
-                                errorMsgElement.textContent = 'Kullanıcı verileri olmadan limitler yüklenemez.';
-                                errorMsgElement.style.display = 'block';
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error(`Kullanıcı ${appUsername} için veri yüklenirken genel bir sorun oluştu:`, error);
-                } finally {
-                    hideLoading();
-                }
-
-            } else {
-                selectedAppUsernames.delete(appUsername);
-                if (cardElement) {
-                    cardElement.classList.remove('visible');
-                    setTimeout(() => cardElement.remove(), 500); 
-                }
-            }
+            userInfoCardsContainer.innerHTML = '';
             
-            if (selectedAppUsernames.size > 0 && availableActions.length > 0) {
-                actionsContainer.classList.add('visible');
-                noActionsMessage.style.display = 'none';
-                populateActionsMenu();
-            } else if (selectedAppUsernames.size === 0) {
-                actionsContainer.classList.remove('visible');
-                noActionsMessage.textContent = "Lütfen işlem yapmak için yukarıdan kullanıcı(lar) seçin.";
-                noActionsMessage.style.display = 'block';
-            } else if (availableActions.length === 0 && selectedAppUsernames.size > 0) {
-                 actionsContainer.classList.add('visible');
-                 noActionsMessage.textContent = "Uygun eylem bulunamadı.";
-                 noActionsMessage.style.display = 'block';
+            if (!users || users.length === 0) {
+                userInfoCardsContainer.innerHTML = '<p class="text-slate-500 italic col-span-full">Kayıtlı kullanıcı bulunamadı.</p>';
+                hideLoading();
+                return;
             }
-        }
 
-        function showLoading() { loadingIndicator.style.display = 'flex'; }
-        function hideLoading() { loadingIndicator.style.display = 'none'; }
-        function showError(message) { errorText.textContent = message; errorMessageContainer.style.display = 'block'; }
-        function hideError() { errorMessageContainer.style.display = 'none'; }
-        if(closeErrorButton) closeErrorButton.addEventListener('click', hideError);
+            const allPromises = users.map(async (user) => {
+                const cardElement = createUserInfoCardElement(user.appUsername);
+                await fetchTumblrUserDataForAppUser(user.appUsername, cardElement);
+                await fetchUserLimitsForAppUser(user.appUsername, cardElement);
+            });
+
+            await Promise.allSettled(allPromises);
+            hideLoading();
+        }
 
         async function fetchAvailableActions() { 
-            console.log("Kullanılabilir eylemler sunucudan çekiliyor...");
             try {
                 const response = await fetch('/api/list-actions');
-                if (!response.ok) throw new Error(`Sunucu hatası (${response.status}) eylemleri çekerken.`);
+                if (!response.ok) throw new Error(`Eylemler çekilemedi (${response.status})`);
                 availableActions = await response.json();
-                console.log("Alınan eylemler:", availableActions);
-                if (selectedAppUsernames.size > 0 && availableActions.length > 0) {
-                    actionsContainer.classList.add('visible');
-                    noActionsMessage.style.display = 'none';
-                    populateActionsMenu();
-                } else if (availableActions.length === 0 && selectedAppUsernames.size > 0) {
-                    noActionsMessage.textContent = "Uygun eylem bulunamadı.";
-                    noActionsMessage.style.display = 'block';
-                     actionsContainer.classList.add('visible');
-                } else {
-                     actionsContainer.classList.remove('visible');
-                }
-
+                populateActionsMenu();
             } catch (error) {
-                console.error("Eylemler listesi çekilirken hata:", error);
                 showError(error.message || "Eylemler yüklenemedi.");
-                actionsMenuDynamic.innerHTML = '';
-                noActionsMessage.textContent = "Eylemler yüklenemedi.";
-                noActionsMessage.style.display = 'block';
-                actionsContainer.classList.add('visible');
             }
         }
 
-        function populateActionsMenu() { 
-            actionsMenuDynamic.innerHTML = ''; 
+        function populateActionsMenu() {
+            actionsMenuDynamic.innerHTML = '';
+            const pageNavContainer = document.createElement('div');
+            pageNavContainer.className = "space-y-3";
+            const apiActionContainer = document.createElement('div');
+            apiActionContainer.className = "space-y-2";
+            
+            const details = document.createElement('details');
+            details.className = "group mt-3";
+            details.innerHTML = `
+                <summary class="block w-full bg-sky-600 hover:bg-sky-700 text-white font-medium py-2.5 px-4 rounded-lg text-center transition duration-150 cursor-pointer">
+                    Diğer API İşlemleri
+                </summary>
+                <div class="mt-2 p-3 border rounded-md bg-gray-50 space-y-2"></div>
+            `;
+            const apiActionList = details.querySelector('div');
+            let apiActionCount = 0;
+
             if (availableActions && availableActions.length > 0) {
-                noActionsMessage.style.display = 'none';
                 availableActions.forEach(action => {
-                    if (action.type === 'pageNavigation' && action.targetPage) {
+                    if (action.type === 'pageNavigation') {
                         const link = document.createElement('a');
                         link.textContent = action.displayName || action.id;
-                        link.title = action.description || '';
                         link.href = action.targetPage; 
                         link.className = 'block w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 px-4 rounded-lg text-center transition duration-150';
-                        actionsMenuDynamic.appendChild(link);
+                        pageNavContainer.appendChild(link);
                     } else if (action.type === 'apiAction') { 
                         const button = document.createElement('button');
                         button.textContent = action.displayName || action.id;
-                        button.title = action.description || '';
-                        button.className = 'block w-full bg-sky-600 hover:bg-sky-700 text-white font-medium py-2.5 px-4 rounded-lg text-center transition duration-150';
-                        button.dataset.actionId = action.id;
+                        button.className = 'block w-full bg-slate-500 hover:bg-slate-600 text-white font-medium py-2 px-3 rounded-lg text-left text-sm transition duration-150';
                         button.addEventListener('click', () => handleApiActionClick(action));
-                        actionsMenuDynamic.appendChild(button);
-                    } else {
-                        console.warn("Bilinmeyen eylem türü veya eksik bilgi:", action);
+                        apiActionList.appendChild(button);
+                        apiActionCount++;
                     }
                 });
+                actionsMenuDynamic.appendChild(pageNavContainer);
+                if (apiActionCount > 0) {
+                    actionsMenuDynamic.appendChild(details);
+                }
+                noActionsMessage.style.display = 'none';
             } else {
-                noActionsMessage.textContent = "Uygun eylem bulunamadı.";
                 noActionsMessage.style.display = 'block';
             }
         }
-
-        async function handleApiActionClick(actionFullConfig) { 
-            console.log(`API Eylemi tıklandı: ${actionFullConfig.id}`);
-            actionResultOutputContainer.style.display = 'none';
-            actionResultOutput.textContent = '';
-
-            const params = {};
-            let paramDefinitions = [];
+        
+        async function handleApiActionClick(actionFullConfig) {
+            let params = {};
             if (actionFullConfig.params && actionFullConfig.params.param) {
-                 paramDefinitions = Array.isArray(actionFullConfig.params.param) 
-                                    ? actionFullConfig.params.param 
-                                    : [actionFullConfig.params.param];
-            }
-
-            for (const paramDef of paramDefinitions) {
-                const value = prompt(paramDef.prompt || `Lütfen '${paramDef.name}' için bir değer girin:`, paramDef.default || '');
-                if (paramDef.required === 'true' && (value === null || value.trim() === '')) {
-                    alert(`'${paramDef.name}' parametresi gereklidir.`); return;
+                const paramDefs = Array.isArray(actionFullConfig.params.param) ? actionFullConfig.params.param : [actionFullConfig.params.param];
+                for (const paramDef of paramDefs) {
+                    const value = prompt(paramDef.prompt || `Değer girin: ${paramDef.name}`, paramDef.default || '');
+                    if (paramDef.required === 'true' && (!value || value.trim() === '')) return alert("Gerekli parametre boş bırakılamaz.");
+                    if (value === null) return;
+                    params[paramDef.name] = value;
                 }
-                if (value !== null) {
-                     params[paramDef.name] = paramDef.type === 'number' ? parseFloat(value) : value;
-                } else if (paramDef.required === 'true') { return; }
             }
 
-            let requestBody = { actionId: actionFullConfig.id, params: params };
-            let targetAppUsernameForAction = null;
-
+            let targetAppUsername = null;
             if (actionFullConfig.authenticationType === 'userToken') {
-                if (selectedAppUsernames.size === 0) {
-                    alert("Bu eylem için lütfen geçerli bir kullanıcı seçin."); return;
-                } else if (selectedAppUsernames.size > 1) {
-                     const userChoice = prompt(`Bu eylem seçili kullanıcılardan hangisi için çalıştırılsın? (Şu an seçili: ${Array.from(selectedAppUsernames).join(', ')}) Lütfen birini yazın:`, Array.from(selectedAppUsernames)[0]);
-                     if (!userChoice || !selectedAppUsernames.has(userChoice)) {
-                        alert("Geçerli bir kullanıcı seçilmedi veya yazılan kullanıcı seçili değil."); return;
-                     }
-                     targetAppUsernameForAction = userChoice;
-                } else { 
-                    targetAppUsernameForAction = Array.from(selectedAppUsernames)[0];
-                }
-                requestBody.appUsername = targetAppUsernameForAction;
+                if (allRegisteredUsers.length === 0) return alert("İşlem için kayıtlı kullanıcı yok.");
+                const userNames = allRegisteredUsers.map(u => u.appUsername).join(', ');
+                const choice = prompt(`Eylem hangi kullanıcı için çalışsın?\n(${userNames})`, allRegisteredUsers[0].appUsername);
+                if (!choice || !allRegisteredUsers.some(u => u.appUsername === choice)) return alert("Geçersiz kullanıcı seçimi.");
+                targetAppUsername = choice;
             }
             
             showLoading();
@@ -611,94 +453,54 @@
                 const response = await fetch('/api/execute-action', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify({ actionId: actionFullConfig.id, params, appUsername: targetAppUsername })
                 });
-                const result = await response.json(); 
-                hideLoading();
-
-                if (!response.ok) {
-                    let errorMessage = result.error || result.message || `Eylem çalıştırılırken hata (${response.status})`;
-                    if (result.needsReAuth && targetAppUsernameForAction) {
-                        errorMessage += " Token geçersiz olabilir.";
-                        const cardForActionUser = document.getElementById(`user-card-${targetAppUsernameForAction.replace(/\W/g, '_')}`);
-                        if (cardForActionUser) {
-                            updateTokenStatusInCard(cardForActionUser, 'error', 'Token hatası, eylem çalıştırılamadı.', targetAppUsernameForAction);
-                        }
-                    }
-                    throw new Error(errorMessage);
-                }
-
+                const result = await response.json();
+                if (!response.ok) throw result;
                 actionResultOutput.textContent = JSON.stringify(result.data, null, 2);
                 actionResultOutputContainer.style.display = 'block';
             } catch (error) {
-                console.error(`Eylem '${actionFullConfig.id}' çalıştırılırken hata:`, error);
-                showError(error.message); 
+                const errorMessage = error.error || error.message || 'Bilinmeyen bir hata oluştu.';
+                showError(errorMessage);
+                if (error.needsReAuth && targetAppUsername) {
+                    const cardElement = document.getElementById(`user-card-${targetAppUsername.replace(/\W/g, '_')}`);
+                    if (cardElement) updateTokenStatusInCard(cardElement, 'error', 'Token Hatası!', targetAppUsername);
+                }
+            } finally {
                 hideLoading();
             }
         }
-
-        if (addNewUserButton) { 
-            addNewUserButton.addEventListener('click', () => {
-                window.location.href = '/login.html?flow=new';
-            });
-        }
         
-        async function refreshLimitsForAllSelectedUsers() {
-            if (selectedAppUsernames.size === 0) {
-                console.log("Periyodik limit yenileme: Seçili kullanıcı yok.");
-                return;
-            }
-            console.log("Periyodik limit yenileme başlatılıyor...");
-            for (const appUsername of selectedAppUsernames) {
-                const cardElement = document.getElementById(`user-card-${appUsername.replace(/\W/g, '_')}`);
-                if (cardElement && cardElement.classList.contains('visible')) {
-                    console.log(`'${appUsername}' için limitler periyodik olarak yenileniyor.`);
-                    try {
-                        const limitsData = await fetchUserLimitsForAppUser(appUsername, cardElement);
-                        if (limitsData) {
-                            displayUserLimitsInCard(cardElement, limitsData);
-                        }
-                    } catch (error) {
-                        console.error(`'${appUsername}' için periyodik limit yenileme hatası:`, error.message);
-                    }
-                }
-            }
+        async function handleRefreshAllLimits() {
+            showLoading();
+            const refreshPromises = allRegisteredUsers.map(async (user) => {
+                const cardElement = document.getElementById(`user-card-${user.appUsername.replace(/\W/g, '_')}`);
+                if (cardElement) await fetchUserLimitsForAppUser(user.appUsername, cardElement);
+            });
+            await Promise.allSettled(refreshPromises);
+            hideLoading();
         }
 
+        function showLoading() { loadingIndicator.style.display = 'flex'; }
+        function hideLoading() { loadingIndicator.style.display = 'none'; }
+        function showError(message) { errorText.textContent = message; errorMessageContainer.style.display = 'block'; }
+        function hideError() { errorMessageContainer.style.display = 'none'; }
 
+        // Event Listeners
+        if (closeErrorButton) closeErrorButton.addEventListener('click', hideError);
+        if (addNewUserButton) addNewUserButton.addEventListener('click', () => { window.location.href = '/login.html?flow=new'; });
+        if (refreshAllLimitsButton) refreshAllLimitsButton.addEventListener('click', handleRefreshAllLimits);
+        
         document.addEventListener('DOMContentLoaded', async () => { 
-            await populateUserCheckboxes(); 
+            await populateAllUserCards(); 
             await fetchAvailableActions(); 
 
-            actionsMenuDynamic.innerHTML = '';
-            noActionsMessage.textContent = "Lütfen işlem yapmak için yukarıdan kullanıcı(lar) seçin.";
-            noActionsMessage.style.display = 'block';
-            actionsContainer.classList.remove('visible');
-
+            // Clean URL after login
             const urlParams = new URLSearchParams(window.location.search);
-            const loginSuccess = urlParams.get('login_success');
-            const newUserAppUsername = urlParams.get('new_user');
-
-            if (loginSuccess === 'true' && newUserAppUsername) {
-                await populateUserCheckboxes(); 
-
-                const newUserCheckbox = userCheckboxesContainer.querySelector(`input[value="${newUserAppUsername}"]`);
-                if (newUserCheckbox) {
-                    newUserCheckbox.checked = true;
-                    const event = new Event('change', { bubbles: true });
-                    newUserCheckbox.dispatchEvent(event);
-                } else { 
-                    showError(`Yeni kullanıcı '${newUserAppUsername}' başarıyla eklendi ancak listede bulunamadı.`);
-                }
-                if (window.history.replaceState) {
-                    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-                    window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
-                }
+            if (urlParams.has('login_success') && window.history.replaceState) {
+                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
             }
-            
-            // Setup periodic refresh for user limits
-            setInterval(refreshLimitsForAllSelectedUsers, USER_LIMIT_REFRESH_INTERVAL);
-            console.log(`Kullanıcı limitleri her ${USER_LIMIT_REFRESH_INTERVAL / 60000} dakikada bir yenilenecek.`);
         });
     </script>
 </body>
