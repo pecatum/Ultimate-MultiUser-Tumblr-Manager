@@ -1,34 +1,31 @@
-// modules/multi_reblog_from_tag_client.js
 document.addEventListener('DOMContentLoaded', () => {
     // --- ELEMENT TANIMLAMALARI ---
-    const tagInputField = document.getElementById('tagInputField'),
-        minNoteCountSelect = document.getElementById('minNoteCountSelect'),
-        fetchPostsButton = document.getElementById('fetchPostsButton'),
-        stopFetchPostsButton = document.getElementById('stopFetchPostsButton'),
-        totalFetchedPostsCount = document.getElementById('totalFetchedPostsCount'),
-        selectAllPostsButton = document.getElementById('selectAllPostsButton'),
-        step1ProgressBar = document.getElementById('step1ProgressBar'),
-        postsContainer = document.getElementById('postsContainer');
+    const step1Container = document.getElementById('step1Container');
+    const step2Container = document.getElementById('step2Container');
+    const goToStep2Button = document.getElementById('goToStep2Button');
+    const selectionCountStep2 = document.getElementById('selectionCountStep2');
 
-    const actionPanel = document.getElementById('actionPanel'),
-        actionPanelSelectionCount = document.getElementById('actionPanelSelectionCount'),
-        moduleUserSelectorContainer = document.getElementById('moduleUserSelectorContainer'),
-        noUserSelectedWarning = document.getElementById('noUserSelectedWarning'),
-        executeActionButton = document.getElementById('executeActionButton'),
-        actionProgressBarContainer = document.getElementById('actionProgressBarContainer'),
-        actionProgressBar = document.getElementById('actionProgressBar'),
-        actionLogArea = document.getElementById('actionLogArea');
+    const tagInputField = document.getElementById('tagInputField');
+    const minNoteCountSelect = document.getElementById('minNoteCountSelect');
+    const fetchPostsButton = document.getElementById('fetchPostsButton');
+    const stopFetchPostsButton = document.getElementById('stopFetchPostsButton');
+    const totalFetchedPostsCount = document.getElementById('totalFetchedPostsCount');
+    const selectAllPostsButton = document.getElementById('selectAllPostsButton');
+    const postsContainer = document.getElementById('postsContainer');
+    
+    const moduleUserSelectorContainer = document.getElementById('moduleUserSelectorContainer');
+    const selectAllUsersButton = document.getElementById('selectAllUsersButton');
+    const noUserSelectedWarning = document.getElementById('noUserSelectedWarning');
+    const executeActionButton = document.getElementById('executeActionButton');
+    const actionProgressBarContainer = document.getElementById('actionProgressBarContainer');
+    const actionProgressBar = document.getElementById('actionProgressBar');
+    const actionLogArea = document.getElementById('actionLogArea');
         
-    const sendModeRadios = document.querySelectorAll('input[name="sendMode"]'),
-        scheduleOptionsContainer = document.getElementById('scheduleOptionsContainer'),
-        randomizeTimeSlider = document.getElementById('randomizeTimeSlider'),
-        randomizeTimeValue = document.getElementById('randomizeTimeValue'),
-        workerCountSlider = document.getElementById('workerCountSlider'),
-        workerCountValue = document.getElementById('workerCountValue'),
-        commonReblogCommentInput = document.getElementById('commonReblogComment'),
-        commonReblogTagsInput = document.getElementById('commonReblogTags'),
-        bulkScheduleDateTimeInput = document.getElementById('bulkScheduleDateTime'),
-        bulkScheduleIntervalInput = document.getElementById('bulkScheduleInterval');
+    const sendModeSelect = document.getElementById('sendModeSelect');
+    const workerCountSlider = document.getElementById('workerCountSlider');
+    const workerCountValue = document.getElementById('workerCountValue');
+    const commonReblogCommentInput = document.getElementById('commonReblogComment');
+    const commonReblogTagsInput = document.getElementById('commonReblogTags');
     
     // --- UYGULAMA DURUMU (STATE) ---
     let isScanning = false, isReblogging = false;
@@ -42,8 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- YARDIMCI FONKSİYONLAR ---
     const logAction = (message, type = 'info') => {
         const time = new Date().toLocaleTimeString('tr-TR');
-        const typeColors = { info: 'text-gray-400', success: 'text-green-400', error: 'text-red-400', system: 'text-blue-400' };
-        actionLogArea.innerHTML += `<div><span class="mr-2">${time}</span><span class="${typeColors[type] || 'text-gray-400'}">${message}</span></div>`;
+        const typeClasses = { info: 'text-gray-400', success: 'text-green-400', error: 'text-red-400', system: 'text-blue-400', warn: 'text-yellow-400' };
+        actionLogArea.innerHTML += `<div><span class="mr-2">${time}</span><span class="${typeClasses[type] || 'text-gray-400'}">${message}</span></div>`;
         actionLogArea.scrollTop = actionLogArea.scrollHeight;
     };
 
@@ -53,13 +50,23 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const response = await fetch('/api/execute-action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const result = await response.json();
-        if (!response.ok) throw new Error(result.error || `Sunucu hatası: ${response.status}`);
+        if (!response.ok) {
+            const error = new Error(result.error || `Sunucu hatası: ${response.status}`);
+            error.details = result.details;
+            throw error;
+        }
         return result.data;
     };
 
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    
-    // --- TARAMA MANTIĞI (follow_suggester'dan uyarlandı) ---
+
+    const updateProgressBar = (bar, percentage, text = '') => {
+        const p = Math.min(100, Math.max(0, percentage));
+        bar.style.width = `${p}%`;
+        bar.textContent = text || `${Math.round(p)}%`;
+    };
+
+    // --- ADIM 1: GÖNDERİ ÇEKME VE LİSTELEME ---
     const startFetchingPosts = async () => {
         if (isScanning) return;
         const tag = tagInputField.value.trim();
@@ -68,30 +75,30 @@ document.addEventListener('DOMContentLoaded', () => {
         isScanning = true;
         fetchPostsButton.hidden = true;
         stopFetchPostsButton.hidden = false;
-        if (postsContainer.children.length === 0 || postsContainer.firstChild.tagName === 'P') {
-            postsContainer.innerHTML = '<p class="text-slate-400 italic text-center py-4 w-full">Gönderiler yükleniyor...</p>';
+        if (allFetchedPosts.size === 0) {
+            postsContainer.innerHTML = '<p class="text-slate-400 italic p-4 text-center col-span-full">Gönderiler yükleniyor...</p>';
+            lastFetchedTimestamp = null;
         }
-        updateProgressBar(step1ProgressBar, 0);
+        logAction(`'${tag}' etiketi için gönderi çekme başlatıldı...`, "system");
 
         while (isScanning) {
             try {
-                const sortOrder = document.querySelector('input[name="sortOrder"]:checked').value;
-                const params = { tag, limit: 20, before: lastFetchedTimestamp, sort: sortOrder };
-                const posts = await makeApiCall('getTaggedPosts', params);
+                const params = { tag, limit: 20, before: lastFetchedTimestamp };
+                const posts = await makeApiCall('getTaggedPosts', params, null);
 
                 if (!isScanning) break;
 
                 if (posts && posts.length > 0) {
                     posts.forEach(post => {
-                        if (post.id_string && !post.reblogged_from_id) {
+                        if (post.id_string && !allFetchedPosts.has(post.id_string) && !post.reblogged_from_id) {
                             allFetchedPosts.set(post.id_string, post);
                         }
                     });
                     lastFetchedTimestamp = posts[posts.length - 1].timestamp;
-                    totalFetchedPostsCount.textContent = `Toplam Çekilen Gönderi: ${allFetchedPosts.size}`;
+                    totalFetchedPostsCount.textContent = `Toplam Çekilen: ${allFetchedPosts.size}`;
                     renderPosts();
                 } else {
-                    logAction("Etiketin sonuna ulaşıldı.", "system");
+                    logAction("Etiketin sonuna ulaşıldı veya yeni gönderi yok.", "system");
                     stopFetchingPosts();
                     break;
                 }
@@ -100,88 +107,82 @@ document.addEventListener('DOMContentLoaded', () => {
                 stopFetchingPosts();
                 break;
             }
-            await delay(500);
+            await delay(1000);
         }
     };
     
     const stopFetchingPosts = () => {
+        if(!isScanning) return;
         isScanning = false;
         fetchPostsButton.hidden = false;
         stopFetchPostsButton.hidden = true;
+        logAction("Gönderi çekme durduruldu.", "warn");
     };
 
-    // --- ARAYÜZ GÜNCELLEME (follow_suggester'dan uyarlandı) ---
     const renderPosts = () => {
         const minNotes = parseInt(minNoteCountSelect.value, 10);
         const filteredPosts = Array.from(allFetchedPosts.values()).filter(post => (post.note_count || 0) >= minNotes);
         
-        const previouslyCheckedPostIds = new Set(selectedPostsForReblog);
-        postsContainer.innerHTML = '';
+        if (postsContainer.firstChild?.tagName === 'P') postsContainer.innerHTML = '';
         
-        if (filteredPosts.length === 0) {
-            postsContainer.innerHTML = '<p class="text-slate-400 italic p-4 text-center w-full">Filtreye uygun gönderi bulunamadı.</p>';
-            return;
+        if (filteredPosts.length === 0 && allFetchedPosts.size > 0) {
+            postsContainer.innerHTML = '<p class="text-slate-400 italic p-4 text-center col-span-full">Filtreye uygun gönderi bulunamadı.</p>';
         }
 
         filteredPosts.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        filteredPosts.forEach(post => postsContainer.appendChild(createPostElement(post, previouslyCheckedPostIds)));
+
+        // Sadece ekranda olmayan yeni postları ekle
+        filteredPosts.forEach(post => {
+            if (!document.querySelector(`.dashboard-post-item[data-post-id="${post.id_string}"]`)) {
+                postsContainer.prepend(createPostElement(post));
+            }
+        });
         
-        if(filteredPosts.length > 0) selectAllPostsButton.hidden = false;
-        updateActionPanelVisibility();
+        selectAllPostsButton.hidden = allFetchedPosts.size === 0;
     };
 
-    const extractImageUrlFromPost = (post) => {
-        if (Array.isArray(post.content)) {
-            const imageBlock = post.content.find(block => block.type === 'image');
-            if (imageBlock?.media?.length > 0) {
-                return (imageBlock.media.find(m => m.width >= 400) || imageBlock.media[0]).url;
-            }
-        }
-        if (post.type === 'photo' && post.photos?.length > 0) {
-            const photo = post.photos[0];
-            return (photo.alt_sizes?.find(s => s.width >= 400) || photo.original_size)?.url;
-        }
-        if (post.type === 'video' && post.thumbnail_url) return post.thumbnail_url;
-        return null;
-    };
-    
-    const createPostElement = (post, checkedIds) => {
+    const createPostElement = (post) => {
         const item = document.createElement('div');
         const postId = post.id_string || post.id.toString();
         item.className = 'dashboard-post-item';
         item.dataset.postId = postId;
 
-        const imageUrl = extractImageUrlFromPost(post);
-        const postSummaryHtml = post.summary || post.caption || post.body || '<p class="italic">İçerik özeti yok.</p>';
+        let imageUrl = null;
+        if (post.photos && post.photos.length > 0) {
+            const suitablePhoto = post.photos[0].alt_sizes.find(s => s.width >= 400) || post.photos[0].original_size;
+            imageUrl = suitablePhoto ? suitablePhoto.url : null;
+        } else if (post.type === 'photo' && post.image_permalink) {
+            imageUrl = post.image_permalink;
+        } else if (post.type === 'video' && post.thumbnail_url) {
+            imageUrl = post.thumbnail_url;
+        }
+
+        const postSummaryHtml = post.summary || post.caption || (post.trail && post.trail[0] && post.trail[0].content_raw) || '<p class="italic">İçerik özeti yok.</p>';
 
         item.innerHTML = `
-            <div class="post-checkbox-container">
-                <input type="checkbox" class="form-checkbox h-5 w-5 dashboard-post-select" data-post-id="${postId}" ${checkedIds.has(postId) ? 'checked' : ''}>
-            </div>
+            <div class="post-checkbox-container"><input type="checkbox" class="form-checkbox h-5 w-5 dashboard-post-select" data-post-id="${postId}"></div>
             <div class="post-thumbnail-container">
-                ${imageUrl ? `<img src="${imageUrl}" onerror="this.parentElement.innerHTML='<div class=\\'post-thumbnail-placeholder\\'>${post.type}</div>';">` : `<div class="post-thumbnail-placeholder">${post.type}</div>`}
+                ${imageUrl ? `<img src="${imageUrl}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'post-thumbnail-placeholder\\'>${post.type}</div>';">` : `<div class="post-thumbnail-placeholder">${post.type}</div>`}
             </div>
             <div class="post-summary-text custom-scroll">${postSummaryHtml}</div>
             <div class="post-blog-info">
-                <span>Blog: <strong>${post.blog_name || 'Bilinmeyen'}</strong></span>
+                <span><strong>${post.blog_name || 'Bilinmeyen'}</strong></span>
                 <span>Not: <strong>${(post.note_count || 0).toLocaleString()}</strong></span>
-                <span>Tür: <strong>${post.type}</strong></span>
+                <a href="${post.post_url}" target="_blank" class="text-indigo-500 hover:underline">Gönderi</a>
             </div>
         `;
 
         const checkbox = item.querySelector('.dashboard-post-select');
         checkbox.addEventListener('change', () => handlePostSelection(postId, checkbox.checked, item));
         item.addEventListener('click', e => {
-            if (e.target.type !== 'checkbox') {
+            if (e.target.type !== 'checkbox' && e.target.tagName !== 'A') {
                 checkbox.checked = !checkbox.checked;
                 checkbox.dispatchEvent(new Event('change'));
             }
         });
-
-        if (checkedIds.has(postId)) item.classList.add('selected');
         return item;
     };
-    
+
     const handlePostSelection = (postId, isChecked, itemElement) => {
         if (isChecked) {
             selectedPostsForReblog.add(postId);
@@ -190,84 +191,100 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedPostsForReblog.delete(postId);
             itemElement.classList.remove('selected');
         }
-        updateActionPanelVisibility();
+        goToStep2Button.disabled = selectedPostsForReblog.size === 0;
+        goToStep2Button.textContent = selectedPostsForReblog.size > 0 
+            ? `Adım 2: ${selectedPostsForReblog.size} Gönderi İçin Ayar Yap →` 
+            : 'Adım 2: Reblog Ayarları →';
     };
 
-    const updateActionPanelVisibility = () => {
-        actionPanelSelectionCount.textContent = selectedPostsForReblog.size;
-        if (selectedPostsForReblog.size > 0 && !isReblogging) {
-            actionPanel.classList.remove('translate-y-full');
-        } else {
-            actionPanel.classList.add('translate-y-full');
-        }
-    };
-    
-    // --- REBLOG MANTIĞI (Korundu ve uyarlandı) ---
-    const setupReblogPanel = async () => {
+    // --- ADIM 2: REBLOG İŞLEMLERİ ---
+    const setupStep2Panel = async () => {
         try {
             allAvailableUsers = await fetch('/api/users').then(res => res.json());
             moduleUserSelectorContainer.innerHTML = '';
-            allAvailableUsers.forEach(user => {
-                const label = document.createElement('label');
-                label.className = 'flex items-center space-x-2 p-1.5 border rounded-md hover:bg-slate-50 cursor-pointer text-sm';
-                label.innerHTML = `<input type="checkbox" value="${user.appUsername}" class="form-checkbox h-4 w-4"><span>${user.tumblrBlogName || user.appUsername}</span>`;
-                label.querySelector('input').addEventListener('change', (e) => {
-                    if (e.target.checked) selectedAppUsernames.add(user.appUsername);
-                    else selectedAppUsernames.delete(user.appUsername);
-                    noUserSelectedWarning.hidden = selectedAppUsernames.size > 0;
+            if (allAvailableUsers.length > 0) {
+                selectAllUsersButton.hidden = false;
+                allAvailableUsers.forEach(user => {
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center space-x-2 p-1.5 border rounded-md hover:bg-slate-50 cursor-pointer text-sm';
+                    label.innerHTML = `<input type="checkbox" value="${user.appUsername}" class="form-checkbox h-4 w-4 user-select-checkbox"><span>${user.tumblrBlogName || user.appUsername}</span>`;
+                    label.querySelector('input').addEventListener('change', (e) => {
+                        if (e.target.checked) selectedAppUsernames.add(user.appUsername);
+                        else selectedAppUsernames.delete(user.appUsername);
+                        noUserSelectedWarning.hidden = selectedAppUsernames.size > 0;
+                    });
+                    moduleUserSelectorContainer.appendChild(label);
                 });
-                moduleUserSelectorContainer.appendChild(label);
-            });
+            } else {
+                selectAllUsersButton.hidden = true;
+            }
         } catch (error) { logAction(`Kullanıcılar çekilemedi: ${error.message}`, "error"); }
     };
 
     const handleExecuteReblog = async () => {
-        if (selectedPostsForReblog.size === 0 || selectedAppUsernames.size === 0 || isReblogging) return;
+        if (selectedPostsForReblog.size === 0) { alert("Lütfen reblog yapılacak gönderileri seçin."); return; }
+        if (selectedAppUsernames.size === 0) { noUserSelectedWarning.hidden = false; return; }
+        if (isReblogging) return;
 
         isReblogging = true;
         executeActionButton.disabled = true;
         actionProgressBarContainer.hidden = false;
-        actionProgressBar.style.width = '0%';
+        updateProgressBar(actionProgressBar, 0, 'Başlatılıyor...');
         logAction("Reblog işlemi başlatılıyor...", "system");
-        
+
+        // Detayları çekerken kullanılacak yetkili kullanıcıyı seç (ilk seçilen kullanıcı)
+        const authorizedUserForFetching = Array.from(selectedAppUsernames)[0];
+        if (!authorizedUserForFetching) {
+            logAction("Detayları çekmek için yetkili kullanıcı bulunamadı.", "error");
+            finishReblogging();
+            return;
+        }
+        logAction(`Gönderi detayları [${authorizedUserForFetching}] kullanıcısının yetkisiyle çekilecek.`, "info");
+
         const postsToProcess = Array.from(selectedPostsForReblog).map(id => allFetchedPosts.get(id)).filter(Boolean);
         
-        logAction(`${postsToProcess.length} gönderi için reblog detayları çekiliyor...`, "system");
-        let processedDetailsCount = 0;
-        for(const post of postsToProcess) {
-            if(!reblogDetailsCache.has(post.id_string)) {
+        // 1. Reblog detaylarını YENİ ve GÜVENİLİR metotla çek
+        updateProgressBar(actionProgressBar, 5, 'Reblog detayları çekiliyor...');
+        for (const post of postsToProcess) {
+            if (!reblogDetailsCache.has(post.id_string)) {
                 try {
-                    const details = await makeApiCall('getPostDetailsForReblogApi', { post_url: post.post_url });
+                    // DEĞİŞİKLİK: Eski API eylemi yerine yenisini çağırıyoruz.
+                    // Parametre olarak artık post_url değil, blog_identifier ve post_id gönderiyoruz.
+                    // Ve bu işlemi bir kullanıcının yetkisiyle yapıyoruz.
+                    const details = await makeApiCall(
+                        'getSinglePostForReblogApi', 
+                        { blog_identifier: post.blog_name, post_id: post.id_string },
+                        authorizedUserForFetching
+                    );
                     reblogDetailsCache.set(post.id_string, details);
-                } catch(e) { logAction(`${post.blog_name}/${post.id_string} detayı alınamadı: ${e.message}`, "error"); }
+                } catch (e) { 
+                    logAction(`'${post.blog_name}/${post.id_string}' detayı alınamadı: ${e.message}`, "error"); 
+                }
             }
-            processedDetailsCount++;
-            actionProgressBar.style.width = `${(processedDetailsCount / postsToProcess.length) * 50}%`;
         }
-         
-        const tasks = [];
+        
+        // 2. Görevleri oluştur (Bu kısım aynı)
+        const reblogTasks = [];
         selectedAppUsernames.forEach(username => {
             postsToProcess.forEach(post => {
-                if(reblogDetailsCache.has(post.id_string)) {
-                    tasks.push({ username, post, details: reblogDetailsCache.get(post.id_string) });
-                }
+                const details = reblogDetailsCache.get(post.id_string);
+                if (details) reblogTasks.push({ type: 'reblog', username, post, details });
             });
         });
+
+        if (reblogTasks.length === 0) { logAction("Reblog yapılacak geçerli görev bulunamadı.", "error"); finishReblogging(); return; }
         
-        let rebloggedCount = 0;
-        const totalReblogs = tasks.length;
-        if (totalReblogs === 0) {
-            logAction("Reblog yapılacak geçerli görev yok.", "error");
-            finishReblogging(); return;
-        }
+        // 3. Görevleri işle (Bu kısım aynı)
+        let completedTasks = 0;
+        const totalTasks = reblogTasks.length;
+        logAction(`${totalTasks} reblog görevi ${workerCountSlider.value} işçi ile başlatılıyor.`);
 
         const worker = async () => {
-            while (tasks.length > 0) {
-                const task = tasks.shift();
+            while (reblogTasks.length > 0) {
+                const task = reblogTasks.shift();
                 if (!task) continue;
                 try {
                     const { username, post, details } = task;
-                    const sendMode = document.querySelector('input[name="sendMode"]:checked')?.value || 'instant';
                     const commonComment = commonReblogCommentInput.value.trim();
                     const commonTags = commonReblogTagsInput.value.trim().split(',').map(t => t.trim()).filter(Boolean);
                     
@@ -275,50 +292,70 @@ document.addEventListener('DOMContentLoaded', () => {
                         parent_tumblelog_uuid: details.parent_tumblelog_uuid,
                         parent_post_id: details.parent_post_id,
                         reblog_key: details.reblog_key,
-                        tags_array: commonTags.length > 0 ? commonTags : details.original_tags,
+                        tags_array: commonTags,
                         comment_npf: commonComment ? [{ type: 'text', text: commonComment }] : [],
-                        post_state: sendMode === 'instant' ? 'published' : 'queue'
+                        state: sendModeSelect.value === 'instant' ? 'published' : 'queue'
                     };
-                    
-                    if (sendMode === 'schedule') {
-                         if (bulkScheduleDateTimeInput.value) {
-                            let baseTime = new Date(bulkScheduleDateTimeInput.value);
-                            const interval = parseInt(bulkScheduleIntervalInput.value) || 0;
-                            const randomization = parseInt(randomizeTimeSlider.value, 10);
-                            const offset = (Math.random() * 2 - 1) * randomization;
-                            // Not: Daha gelişmiş bireysel planlama için burası genişletilebilir.
-                            baseTime.setMinutes(baseTime.getMinutes() + offset + (tasks.length * interval));
-                            params.publish_on_iso = baseTime.toISOString();
-                        }
-                    }
 
                     await makeApiCall('reblogPostApi', params, username);
                     logAction(`[${username}] > ${post.blog_name} rebloglandı.`, "success");
-                } catch(e) { logAction(`[${task?.username}] reblog hatası: ${e.message}`, "error"); } 
-                finally {
-                    rebloggedCount++;
-                    actionProgressBar.style.width = `${50 + (rebloggedCount / totalReblogs) * 50}%`;
+                } catch(e) { 
+                    logAction(`[${task?.username}] reblog hatası: ${e.message}`, "error"); 
+                    if (e.message.includes('429')) {
+                        logAction("API Limitine takılındı. 60sn bekleniyor...", "warn");
+                        await delay(60000);
+                        reblogTasks.unshift(task);
+                    }
+                } finally {
+                    completedTasks++;
+                    const progress = 10 + (completedTasks / totalTasks) * 80;
+                    updateProgressBar(actionProgressBar, progress, `${completedTasks}/${totalTasks}`);
+                    await delay(500);
                 }
             }
         };
 
-        const workerCount = parseInt(workerCountSlider.value, 10);
-        const workerPromises = Array(workerCount).fill(null).map(worker);
+        const workerPromises = Array(parseInt(workerCountSlider.value, 10)).fill(null).map(worker);
         await Promise.all(workerPromises);
-        finishReblogging();
+
+        // 4. Kuyrukları karıştır (Bu kısım aynı)
+        logAction("Tüm blogların kuyrukları 6 kez karıştırılıyor...", "system");
+        const shuffleUsers = Array.from(selectedAppUsernames);
+        let shuffledCount = 0;
+        for (const username of shuffleUsers) {
+            for (let i = 0; i < 6; i++) {
+                try {
+                    await makeApiCall('shuffleUserQueue', {}, username);
+                } catch(e) { logAction(`[${username}] kuyruk karıştırma hatası: ${e.message}`, "error"); }
+                shuffledCount++;
+                const progress = 90 + (shuffledCount / (shuffleUsers.length * 6)) * 10;
+                updateProgressBar(actionProgressBar, progress, 'Kuyruklar karıştırılıyor...');
+                await delay(300);
+            }
+            logAction(`[${username}] kuyruğu 6 kez karıştırıldı.`, "info");
+        }
+        
+        finishReblogging(); // Bu fonksiyon zaten dosyanızda mevcut
     };
 
     const finishReblogging = () => {
-        logAction("Tüm reblog işlemleri tamamlandı.", "system");
+        updateProgressBar(actionProgressBar, 100, 'Tamamlandı!');
+        logAction("Tüm işlemler tamamlandı.", "system");
         isReblogging = false;
         executeActionButton.disabled = false;
-        setTimeout(() => { actionProgressBarContainer.hidden = true; }, 2000);
+        setTimeout(() => { 
+            step2Container.hidden = true;
+            step1Container.hidden = false;
+            selectedPostsForReblog.clear();
+            renderPosts();
+            goToStep2Button.disabled = true;
+            goToStep2Button.textContent = 'Adım 2: Reblog Ayarları →';
+        }, 3000);
     };
 
     // --- OLAY DİNLEYİCİLERİ ---
     fetchPostsButton.addEventListener('click', startFetchingPosts);
     stopFetchPostsButton.addEventListener('click', stopFetchingPosts);
-
     minNoteCountSelect.addEventListener('change', renderPosts);
     
     selectAllPostsButton.addEventListener('click', () => {
@@ -332,12 +369,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    executeActionButton.addEventListener('click', handleExecuteReblog);
+    selectAllUsersButton.addEventListener('click', () => {
+        const checkboxes = moduleUserSelectorContainer.querySelectorAll('.user-select-checkbox');
+        const shouldSelectAll = Array.from(checkboxes).some(cb => !cb.checked);
+        checkboxes.forEach(cb => {
+            if(cb.checked !== shouldSelectAll) {
+                cb.checked = shouldSelectAll;
+                cb.dispatchEvent(new Event('change'));
+            }
+        });
+    });
     
-    sendModeRadios.forEach(radio => radio.addEventListener('change', e => scheduleOptionsContainer.hidden = e.target.value !== 'schedule'));
-    randomizeTimeSlider.addEventListener('input', e => randomizeTimeValue.textContent = e.target.value);
+    goToStep2Button.addEventListener('click', () => {
+        if(selectedPostsForReblog.size > 0) {
+            step1Container.hidden = true;
+            step2Container.hidden = false;
+            selectionCountStep2.textContent = selectedPostsForReblog.size;
+        }
+    });
+
+    executeActionButton.addEventListener('click', handleExecuteReblog);
     workerCountSlider.addEventListener('input', e => workerCountValue.textContent = e.target.value);
 
-    // --- Başlangıç ---
-    setupReblogPanel();
+    // --- BAŞLANGIÇ ---
+    setupStep2Panel();
 });

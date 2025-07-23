@@ -7,28 +7,24 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        body { font-family: 'Inter', sans-serif; }
         .progress-bar { transition: width 0.4s ease-in-out; }
-        
-        /* follow_suggester.html'den alınan kart stilleri */
         .dashboard-post-item { 
             display: grid; grid-template-columns: 1fr 1.75fr; grid-template-rows: auto 1fr auto; 
             gap: 0.5rem 1rem; padding: 1rem; border: 1px solid #e5e7eb; 
-            margin-bottom: 1rem; border-radius: 0.5rem; cursor: pointer; 
-            transition: background-color 0.2s, box-shadow 0.2s; background-color: #fff; 
-            box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06); 
-            min-height: 280px; width: 100%;
+            border-radius: 0.5rem; cursor: pointer; transition: background-color 0.2s, box-shadow 0.2s; 
+            background-color: #fff; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1); 
+            min-height: 280px;
         }
         .dashboard-post-item:hover { background-color: #f9fafb; }
         .dashboard-post-item.selected { background-color: #eef2ff; border-left: 5px solid #4f46e5; padding-left: calc(1rem - 5px); }
-        .dashboard-post-item .post-checkbox-container { grid-column: 1 / -1; grid-row: 1 / 2; }
+        .dashboard-post-item .post-checkbox-container { grid-column: 1 / -1; }
         .dashboard-post-item .post-thumbnail-container { grid-column: 1 / 2; grid-row: 2 / 3; display: flex; align-items: center; justify-content: center; background-color: #f0f2f5; border-radius: 0.375rem; overflow: hidden; height: 100%; border: 1px solid #e5e7eb; }
-        .dashboard-post-item .post-thumbnail-container img { width: 100%; height: 100%; object-fit: cover; }
+        .dashboard-post-item img { width: 100%; height: 100%; object-fit: cover; }
         .dashboard-post-item .post-thumbnail-placeholder { font-weight: 700; color: #4b5563; text-transform: uppercase; text-align: center; }
         .dashboard-post-item .post-summary-text { grid-column: 2 / 3; grid-row: 2 / 3; font-size: 0.875rem; color: #374151; max-height: 220px; overflow-y: auto; word-wrap: break-word; }
-        .dashboard-post-item .post-blog-info { grid-column: 1 / -1; grid-row: 3 / 4; font-size: 0.8rem; color: #6b7280; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #f3f4f6; text-align: center; display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; }
-
-        .action-panel { transition: transform 0.3s ease-in-out; }
+        .dashboard-post-item .post-blog-info { grid-column: 1 / -1; grid-row: 3 / 4; font-size: 0.8rem; color: #6b7280; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #f3f4f6; text-align: center; display: flex; justify-content: space-around; align-items: center; }
+        .log-console { background-color: #111827; color: #9ca3af; padding: 1rem; border-radius: 0.5rem; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 0.8rem; height: 300px; overflow-y: auto; white-space: pre-wrap; border: 1px solid #374151;}
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #c7c7c7; }
@@ -41,14 +37,11 @@
             <h1 class="text-3xl font-bold text-slate-800">Etiketten Gelişmiş Reblog Planlayıcı</h1>
         </header>
 
-        <main class="lg:col-span-8 space-y-6">
+        <main class="space-y-6">
             <section id="step1Container" class="p-5 bg-white rounded-lg shadow-lg">
-                <div class="flex justify-between items-center mb-2">
-                    <h2 class="text-xl font-semibold text-slate-700">Adım 1: Gönderi Bul ve Seç</h2>
-                    <p id="totalFetchedPostsCount" class="text-sm text-slate-500">Toplam Çekilen Gönderi: 0</p>
-                </div>
+                <h2 class="text-xl font-semibold text-slate-700 mb-4">Adım 1: Gönderi Bul ve Seç</h2>
                 <div class="p-4 border rounded-md bg-slate-50 space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="tagInputField" class="block text-sm font-medium text-gray-700">Etiket:</label>
                             <input type="text" id="tagInputField" class="mt-1 shadow-sm block w-full sm:text-sm border-gray-300 rounded-md" placeholder="Örn: art, gif, poetry...">
@@ -60,91 +53,76 @@
                             </select>
                         </div>
                     </div>
-                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Sıralama Türü:</label>
-                        <div class="mt-1 flex items-center space-x-6">
-                            <label class="flex items-center"><input id="sortRecentRadio" name="sortOrder" type="radio" value="recent" class="h-4 w-4" checked><span class="ml-2 text-sm">En Yeni</span></label>
-                            <label class="flex items-center"><input id="sortTopRadio" name="sortOrder" type="radio" value="top" class="h-4 w-4"><span class="ml-2 text-sm">En Popüler</span></label>
-                        </div>
-                    </div>
                     <div class="flex items-center gap-2 pt-2">
                         <button id="fetchPostsButton" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md">Gönderileri Çek</button>
                         <button id="stopFetchPostsButton" class="sm:w-auto bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-md" hidden>Durdur</button>
+                        <span id="totalFetchedPostsCount" class="text-sm text-slate-500 ml-auto">Toplam Çekilen: 0</span>
                     </div>
                 </div>
 
                 <div class="flex justify-end items-center my-4">
                     <button id="selectAllPostsButton" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 py-1 px-2 rounded-md shadow-sm" hidden>Tümünü Seç/Bırak</button>
                 </div>
-
-                <div class="bg-gray-200 rounded-full h-1.5 mb-4"><div id="step1ProgressBar" class="bg-indigo-600 h-1.5 rounded-full progress-bar"></div></div>
                 
-                <div id="postsContainer" class="mt-4 max-h-[calc(100vh-450px)] overflow-y-auto pr-1 custom-scroll">
-                    <p class="text-slate-400 italic p-4 text-center w-full">Gönderiler burada listelenecek.</p>
+                <div id="postsContainer" class="mt-4 max-h-[70vh] overflow-y-auto pr-2 custom-scroll grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <p class="text-slate-400 italic p-4 text-center col-span-full">Gönderiler burada listelenecek.</p>
+                </div>
+
+                <div class="mt-6 text-center">
+                    <button id="goToStep2Button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                        Adım 2: Reblog Ayarları →
+                    </button>
                 </div>
             </section>
-        </main>
-        
-        <div id="actionPanel" class="action-panel fixed bottom-0 left-0 right-0 bg-white border-t-2 border-indigo-500 shadow-[0_-4px_30px_rgba(0,0,0,0.1)] p-5 transform translate-y-full z-40 max-h-[90vh] overflow-y-auto">
-            <h2 class="text-xl font-bold text-slate-800 mb-4">Seçilen <span id="actionPanelSelectionCount">0</span> Gönderiyi Reblogla</h2>
-             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-1 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Reblog Yapacak Hesaplar:</label>
-                        <div id="moduleUserSelectorContainer" class="max-h-40 overflow-y-auto border p-2 rounded-md space-y-1 custom-scroll"></div>
-                        <p id="noUserSelectedWarning" class="text-red-600 text-sm mt-1" hidden>Lütfen en az bir hesap seçin.</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Gönderim Modu:</label>
-                        <div class="space-y-1">
-                           <label class="flex items-center"><input type="radio" name="sendMode" value="instant" class="form-radio"><span class="ml-2">Anlık Reblog</span></label>
-                           <label class="flex items-center"><input type="radio" name="sendMode" value="queue" class="form-radio"><span class="ml-2">Sıraya Ekle</span></label>
-                           <label class="flex items-center"><input type="radio" name="sendMode" value="schedule" class="form-radio"><span class="ml-2">Planla</span></label>
+
+            <section id="step2Container" class="p-5 bg-white rounded-lg shadow-lg" hidden>
+                <h2 class="text-xl font-semibold text-slate-700 mb-4">Adım 2: Seçilen <span id="selectionCountStep2">0</span> Gönderiyi Reblogla</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-1 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Reblog Yapacak Hesaplar:</label>
+                            <button id="selectAllUsersButton" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 py-1 px-2 rounded-md shadow-sm mb-2" hidden>Tümünü Seç/Bırak</button>
+                            <div id="moduleUserSelectorContainer" class="max-h-40 overflow-y-auto border p-2 rounded-md space-y-1 custom-scroll"></div>
+                            <p id="noUserSelectedWarning" class="text-red-600 text-sm mt-1" hidden>Lütfen en az bir hesap seçin.</p>
+                        </div>
+                        <div>
+                            <label for="sendModeSelect" class="block text-sm font-medium text-gray-700">Gönderim Modu:</label>
+                            <select id="sendModeSelect" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md">
+                                <option value="queue" selected>Sıraya Ekle (Önerilen)</option>
+                                <option value="instant">Anında Yayınla</option>
+                            </select>
                         </div>
                     </div>
-                </div>
-                <div class="lg:col-span-2 space-y-4">
-                    <div id="commonContentContainer">
-                         <div>
+                    <div class="lg:col-span-2 space-y-4">
+                        <div>
                             <label for="commonReblogComment" class="block text-sm font-medium text-gray-700">Ortak Reblog Yorumu (Opsiyonel):</label>
                             <textarea id="commonReblogComment" rows="2" class="mt-1 block w-full p-2 border rounded-md"></textarea>
                         </div>
                         <div>
-                            <label for="commonReblogTags" class="block text-sm font-medium text-gray-700">Ortak Etiketler (Orijinallerin yerine geçer):</label>
+                            <label for="commonReblogTags" class="block text-sm font-medium text-gray-700">Eklenecek Etiketler (Orijinallerin yerine geçer):</label>
                             <input type="text" id="commonReblogTags" class="mt-1 block w-full p-2 border rounded-md" placeholder="etiket1, etiket2...">
                         </div>
-                    </div>
-                    <div id="scheduleOptionsContainer" class="space-y-4" hidden>
-                        <div class="p-4 border rounded-md bg-gray-50 space-y-3">
-                           <div>
-                                <label for="bulkScheduleDateTime" class="text-sm">İlk Reblog Zamanı:</label>
-                                <input type="datetime-local" id="bulkScheduleDateTime" class="mt-1 block w-auto p-1.5 border rounded-md text-sm">
-                           </div>
-                           <div>
-                                <label for="bulkScheduleInterval" class="text-sm">Gönderiler Arası Süre (Dakika):</label>
-                                <input type="number" id="bulkScheduleInterval" min="0" value="30" class="mt-1 block w-24 p-1.5 border rounded-md text-sm">
-                           </div>
-                           <div>
-                               <label for="randomizeTimeSlider" class="text-sm">Zamanı Dağıt (± Dakika): <span id="randomizeTimeValue" class="font-bold">0</span></label>
-                               <input type="range" id="randomizeTimeSlider" min="0" max="60" step="5" value="0" class="w-full h-2 mt-1">
-                           </div>
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium text-gray-700">Paralel İşlem Kapasitesi: <span id="workerCountValue">10</span></label>
+                            <input type="range" id="workerCountSlider" min="1" max="20" value="10" class="w-full h-2 mt-1">
                         </div>
                     </div>
-                     <div class="mt-4">
-                        <label class="block text-sm font-medium text-gray-700">Paralel İşlem Kapasitesi: <span id="workerCountValue">5</span></label>
-                        <input type="range" id="workerCountSlider" min="1" max="15" value="5" class="w-full h-2 mt-1">
-                    </div>
                 </div>
-            </div>
-            <div class="border-t mt-5 pt-5 text-center">
-                 <div id="actionProgressBarContainer" class="mb-2 h-2 bg-gray-200 rounded-full" hidden><div id="actionProgressBar" class="h-2 bg-green-500 rounded-full progress-bar"></div></div>
-                <button id="executeActionButton" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg disabled:bg-gray-400">İşlemi Başlat</button>
-            </div>
-            <footer class="mt-4 pt-4 border-t">
-                <h3 class="text-lg font-semibold text-slate-700 mb-2">İşlem Kayıtları</h3>
-                <div id="actionLogArea" class="h-40 bg-gray-900 text-gray-300 font-mono text-xs p-3 rounded-lg overflow-y-auto custom-scroll"></div>
-            </footer>
-        </div>
+                <div class="border-t mt-6 pt-6 text-center">
+                    <div id="actionProgressBarContainer" class="mb-4 h-4 bg-gray-200 rounded-full overflow-hidden" hidden>
+                        <div id="actionProgressBar" class="h-4 bg-blue-500 rounded-full progress-bar flex items-center justify-center text-white text-xs"></div>
+                    </div>
+                    <button id="executeActionButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg disabled:bg-gray-400">
+                        İşlemi Başlat
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <footer class="mt-8 pt-6 border-t border-gray-300">
+             <h3 class="text-lg font-semibold text-slate-700 mb-2">İşlem Kayıtları</h3>
+             <div id="actionLogArea" class="log-console custom-scroll">Modül hazır.</div>
+        </footer>
     </div>
     <script src="/modules/multi_reblog_from_tag_client.js"></script>
 </body>

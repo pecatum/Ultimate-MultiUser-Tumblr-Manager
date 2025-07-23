@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gelişmiş Etkileşim Botu (İşçi Havuzlu v2)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="multi_action_bot_client.js" defer></script>
+    <style>
+        .log-entry { border-bottom: 1px solid #374151; padding: 4px 0; }
+        .log-entry:last-child { border-bottom: none; }
+        .pin-checkbox { appearance: none; width: 1.25rem; height: 1.25rem; border: 2px solid #9ca3af; border-radius: 0.25rem; cursor: pointer; position: relative; }
+        .pin-checkbox:checked { border-color: #ef4444; background-color: #ef4444; }
+        .pin-checkbox:checked::after { content: '📌'; color: white; font-size: 0.75rem; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+    </style>
+</head>
+<body class="bg-slate-100 p-6">
+    <div class="container mx-auto max-w-4xl bg-white p-8 rounded-xl shadow-lg">
+        <h1 class="text-3xl font-bold text-slate-800 mb-6 border-b pb-4">Gelişmiş Etkileşim Botu</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <div>
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-lg font-semibold text-slate-700">1. İşlem Yapacak Hesaplar</h2>
+                        <select id="userSelectionHelper" class="bg-slate-200 text-slate-700 text-xs font-semibold py-1 px-3 rounded-md hover:bg-slate-300 focus:outline-none">
+                            <option value="none">Seçim Yardımcısı</option>
+                            <option value="all">Tümünü Seç</option>
+                            <option value="clear">Seçimleri Temizle</option>
+                            <option value="random-5">Rastgele 5 Seç</option>
+                            <option value="random-10">Rastgele 10 Seç</option>
+                            <option value="random-20">Rastgele 20 Seç</option>
+                            <option value="random-30">Rastgele 30 Seç</option>
+                        </select>
+                    </div>
+                    <div id="userCheckboxesContainer" class="grid grid-cols-1 gap-1 max-h-48 overflow-y-auto p-2 border rounded-md">
+                        <p class="text-slate-500 italic">Kullanıcılar yükleniyor...</p>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">📌 ikonu ile işaretlenen hesaplar rastgele seçimden etkilenmez.</p>
+                </div>
+
+                <div class="mb-6">
+                    <h2 class="text-lg font-semibold text-slate-700 mb-2">2. Hedef Gönderiler</h2>
+                    <div class="space-y-2">
+                        <div>
+                            <input type="radio" id="sourceUrl" name="postSource" value="url" checked class="accent-indigo-600">
+                            <label for="sourceUrl">Belirli bir Gönderi URL'si:</label>
+                            <input type="text" id="targetPostUrl" placeholder="https://kullanici.tumblr.com/post/12345" class="w-full mt-1 p-2 border rounded-md">
+                        </div>
+                        <div>
+                            <input type="radio" id="sourceBlog" name="postSource" value="blog" class="accent-indigo-600">
+                            <label for="sourceBlog">Bir Blogun Son 20 Gönderisi:</label>
+                            <input type="text" id="targetBlogName" placeholder="kullanici" class="w-full mt-1 p-2 border rounded-md">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h2 class="text-lg font-semibold text-slate-700 mb-2">3. İşlem Türü ve Ayarlar</h2>
+                    <select id="actionType" class="w-full p-2 border rounded-md mb-4">
+                        <option value="like">Sadece Beğen (Like)</option>
+                        <option value="reblog">Sadece Yeniden Blogla (Reblog)</option>
+                        <option value="both" selected>Hem Beğen Hem Yeniden Blogla</option>
+                    </select>
+                    <div id="reblogOptions" class="p-3 bg-slate-50 rounded-md border">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="randomizeSchedule" class="h-4 w-4 rounded accent-indigo-500">
+                            <label for="randomizeSchedule" class="ml-2 text-sm">Reblogları ~60 dakika (+/- 30 dk) içinde rastgele zamanla</label>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">İşaretli değilse, reblog işlemi anında yapılır.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-lg font-semibold text-slate-700 mb-2">4. İşlemi Başlat ve Takip Et</h2>
+                <button id="startButton" class="w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 font-bold text-lg transition-all duration-300 disabled:bg-slate-400">
+                    İŞLEMİ BAŞLAT
+                </button>
+
+                <div id="progressContainer" class="mt-4 hidden">
+                    <div class="flex justify-between mb-1">
+                        <span id="progressText" class="text-sm font-medium text-slate-700">İşlem Kuyruğu</span>
+                        <span id="progressPercentage" class="text-sm font-medium text-slate-700">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2.5">
+                        <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="logContainer" class="mt-4 hidden">
+                     <h3 class="text-md font-semibold text-slate-700">İşlem Kayıtları:</h3>
+                     <div id="logArea" class="mt-2 p-3 bg-slate-800 text-white font-mono text-xs rounded-md h-96 overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
