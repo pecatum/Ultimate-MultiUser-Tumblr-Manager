@@ -57,6 +57,14 @@
       <type>pageNavigation</type>
       <targetPage>/modules/auto_liker.html</targetPage>
     </module>
+    <module
+    id="multiAccountAutoFollowerPage"
+    displayName="Çoklu Hesap Otomatik Takipçi (URL'den Not)"
+    description="URL'lerdeki notlardan bulunan blogları, seçilen birden fazla hesapla otomatik olarak takip eder ve gönderilerini beğenir."
+    type="pageNavigation"
+    targetPage="/modules/multi_account_follower.html"
+    authenticationType="userTokenRequired">
+</module>
     <module>
       <id>multiReblogFromTagPage</id>
       <displayName>Etiketten Çoklu Reblog Planlayıcı</displayName>
