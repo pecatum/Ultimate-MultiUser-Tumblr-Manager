@@ -26,6 +26,14 @@
       <type>pageNavigation</type>
       <targetPage>/modules/auto_liker.html</targetPage>
     </module>
+        <module>
+      <id>multiReblogFromTagPage</id>
+      <displayName>Etiketten Çoklu Reblog Planlayıcı</displayName>
+      <description>Belirli bir etiketten çekilen gönderileri, seçilen birden fazla kullanıcı için anlık, sıralı veya zamanlanmış olarak yeniden bloglar.</description>
+      <type>pageNavigation</type>
+      <targetPage>/modules/multi_reblog_from_tag.html</targetPage>
+      <authenticationType>userTokenRequired</authenticationType>
+    </module>
     <module>
       <id>inactiveUnfollowerPage</id>
       <displayName>İnaktif Blogları Takipten Çıkarıcı</displayName>

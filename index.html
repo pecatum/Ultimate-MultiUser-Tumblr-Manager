@@ -39,7 +39,7 @@
         .progress-bar-container { background-color: #e9ecef; border-radius: 9999px; overflow: hidden; height: 0.625rem; /* h-2.5 Tailwind */ }
         .progress-bar { background-color: #3b82f6; /* Default blue, can be overridden */ height: 100%; text-align: center; transition: width 0.4s ease-in-out; }
         
-        /* Dropdown for API Actions from previous request */
+        /* Dropdown for API Actions */
         details > summary { list-style: none; }
         details > summary::-webkit-details-marker { display: none; }
     </style>
@@ -103,7 +103,7 @@
     </main>
 
     <script>
-        // All elements are the same as the previous version.
+        // DOM Elementlerini seçme (değişiklik yok)
         const loadingIndicator = document.getElementById('loadingIndicator');
         const errorMessageContainer = document.getElementById('errorMessageContainer');
         const errorText = document.getElementById('errorText');
@@ -116,9 +116,11 @@
         const userInfoCardsContainer = document.getElementById('userInfoCardsContainer');
         const refreshAllLimitsButton = document.getElementById('refreshAllLimitsButton');
 
+        // Global değişkenler (değişiklik yok)
         let availableActions = [];
         let allRegisteredUsers = [];
 
+        // Kullanıcı ve kartlarla ilgili tüm fonksiyonlar (değişiklik yok)
         async function fetchRegisteredUsersFromServer() {
             try {
                 const response = await fetch('/api/users');
@@ -142,7 +144,6 @@
             card.id = cardId;
             card.className = 'bg-white p-4 rounded-xl shadow-lg user-info-card';
             
-            // This HTML structure is from the previous request and remains the same.
             card.innerHTML = `
                 <div class="flex items-center space-x-4">
                     <img data-field="userProfilePic" src="https://placehold.co/64x64/e2e8f0/cbd5e0?text=..." alt="Profil" class="w-16 h-16 rounded-full border-2 border-slate-200 object-cover">
@@ -202,26 +203,20 @@
             cardElement.querySelector('[data-field="userLikesCount"]').textContent = userDataUser.likes?.toLocaleString() || '0';
         }
 
-        /**
-         * GÜNCELLENDİ: Bu fonksiyonun içi, dashboard_liker_bot_client.js'deki esnek mantıkla değiştirildi.
-         */
         function displayUserLimitsInCard(cardElement, limitsData) {
             const limitsContent = cardElement.querySelector('[data-field="limitsContent"]');
             if (!limitsContent) return;
 
-            // DOM elementlerini al
             const loadingMessage = limitsContent.querySelector('[data-limit-loading-message]');
             const errorMessage = limitsContent.querySelector('[data-limit-error-message]');
             const followsElement = limitsContent.querySelector('[data-limit-type="follows"]');
             const likesElement = limitsContent.querySelector('[data-limit-type="likes"]');
 
-            // Başlangıçta hepsini temizle
             loadingMessage.style.display = 'none';
             errorMessage.style.display = 'none';
             followsElement.style.display = 'none';
             likesElement.style.display = 'none';
 
-            // dashboard_liker_bot_client.js'den gelen veri işleme mantığı
             let likesUsed = 0, likesTotal = 1000;
             let followsUsed = 0, followsTotal = 200;
             let dataParsedSuccessfully = false;
@@ -278,7 +273,6 @@
                 return;
             }
 
-            // Verileri DOM'a yazdır
             const updateLimitElement = (element, used, total) => {
                 if (!element) return;
                 element.style.display = 'block';
@@ -290,8 +284,6 @@
             updateLimitElement(likesElement, likesUsed, likesTotal);
             updateLimitElement(followsElement, followsUsed, followsTotal);
         }
-
-        // --- Diğer Tüm Fonksiyonlar (Önceki versiyon ile aynı) ---
 
         function updateTokenStatusInCard(cardElement, statusType, message, appUsernameForReauth = null) {
             const tokenStatusContainer = cardElement.querySelector('[data-field="tokenStatusContainer"]');
@@ -371,23 +363,38 @@
             hideLoading();
         }
 
+        /**
+         * GÜNCELLENDİ: Bu fonksiyon artık '/api/list-actions' endpoint'ini kullanarak
+         * modül listesini doğrudan sunucudan alır.
+         */
         async function fetchAvailableActions() { 
             try {
+                // Sunucunun sağladığı API endpoint'ini çağırıyoruz.
                 const response = await fetch('/api/list-actions');
-                if (!response.ok) throw new Error(`Eylemler çekilemedi (${response.status})`);
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({})); // Hata mesajı JSON olmayabilir
+                    throw new Error(errorData.error || `Sunucu eylemleri listelerken bir hata oluştu (${response.status})`);
+                }
+                
+                // Sunucudan gelen JSON verisini doğrudan global `availableActions` değişkenine atıyoruz.
                 availableActions = await response.json();
+                
+                // Arayüzü doldurma fonksiyonunu çağırıyoruz.
                 populateActionsMenu();
+
             } catch (error) {
                 showError(error.message || "Eylemler yüklenemedi.");
+                noActionsMessage.textContent = "Modüller yüklenirken bir hata oluştu: " + error.message;
+                noActionsMessage.style.display = 'block';
             }
         }
 
-        function populateActionsMenu() {
+
+        function populateActionsMenu() { // Bu fonksiyonun içeriği aynı kaldı, çünkü gruplama mantığı doğru çalışıyor.
             actionsMenuDynamic.innerHTML = '';
             const pageNavContainer = document.createElement('div');
             pageNavContainer.className = "space-y-3";
-            const apiActionContainer = document.createElement('div');
-            apiActionContainer.className = "space-y-2";
             
             const details = document.createElement('details');
             details.className = "group mt-3";
@@ -399,6 +406,7 @@
             `;
             const apiActionList = details.querySelector('div');
             let apiActionCount = 0;
+            let pageNavCount = 0;
 
             if (availableActions && availableActions.length > 0) {
                 availableActions.forEach(action => {
@@ -408,6 +416,7 @@
                         link.href = action.targetPage; 
                         link.className = 'block w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 px-4 rounded-lg text-center transition duration-150';
                         pageNavContainer.appendChild(link);
+                        pageNavCount++;
                     } else if (action.type === 'apiAction') { 
                         const button = document.createElement('button');
                         button.textContent = action.displayName || action.id;
@@ -417,24 +426,40 @@
                         apiActionCount++;
                     }
                 });
-                actionsMenuDynamic.appendChild(pageNavContainer);
+
+                if (pageNavCount > 0) {
+                    actionsMenuDynamic.appendChild(pageNavContainer);
+                }
                 if (apiActionCount > 0) {
                     actionsMenuDynamic.appendChild(details);
                 }
-                noActionsMessage.style.display = 'none';
+                
+                if (pageNavCount > 0 || apiActionCount > 0) {
+                    noActionsMessage.style.display = 'none';
+                } else {
+                    noActionsMessage.textContent = 'Sunucudan geçerli modül bulunamadı.';
+                    noActionsMessage.style.display = 'block';
+                }
+
             } else {
                 noActionsMessage.style.display = 'block';
             }
         }
         
-        async function handleApiActionClick(actionFullConfig) {
+        async function handleApiActionClick(actionFullConfig) { // Değişiklik yok
             let params = {};
             if (actionFullConfig.params && actionFullConfig.params.param) {
                 const paramDefs = Array.isArray(actionFullConfig.params.param) ? actionFullConfig.params.param : [actionFullConfig.params.param];
                 for (const paramDef of paramDefs) {
-                    const value = prompt(paramDef.prompt || `Değer girin: ${paramDef.name}`, paramDef.default || '');
-                    if (paramDef.required === 'true' && (!value || value.trim() === '')) return alert("Gerekli parametre boş bırakılamaz.");
-                    if (value === null) return;
+                    const promptText = paramDef.prompt || `Değer girin: ${paramDef.name}`;
+                    const defaultValue = paramDef.default || '';
+                    const value = prompt(promptText, defaultValue);
+
+                    if (paramDef.required === 'true' && (!value || value.trim() === '')) {
+                        alert("Gerekli parametre boş bırakılamaz: " + paramDef.name);
+                        return;
+                    }
+                    if (value === null) return; // Kullanıcı iptale bastı
                     params[paramDef.name] = value;
                 }
             }
@@ -442,14 +467,23 @@
             let targetAppUsername = null;
             if (actionFullConfig.authenticationType === 'userToken') {
                 if (allRegisteredUsers.length === 0) return alert("İşlem için kayıtlı kullanıcı yok.");
-                const userNames = allRegisteredUsers.map(u => u.appUsername).join(', ');
-                const choice = prompt(`Eylem hangi kullanıcı için çalışsın?\n(${userNames})`, allRegisteredUsers[0].appUsername);
-                if (!choice || !allRegisteredUsers.some(u => u.appUsername === choice)) return alert("Geçersiz kullanıcı seçimi.");
-                targetAppUsername = choice;
+                
+                if (allRegisteredUsers.length === 1) {
+                    targetAppUsername = allRegisteredUsers[0].appUsername;
+                } else {
+                    const userNames = allRegisteredUsers.map(u => u.appUsername).join(', ');
+                    const choice = prompt(`Eylem hangi kullanıcı için çalışsın?\n(${userNames})`, allRegisteredUsers[0].appUsername);
+                    if (!choice || !allRegisteredUsers.some(u => u.appUsername === choice)) {
+                        alert("Geçersiz kullanıcı seçimi.");
+                        return;
+                    }
+                    targetAppUsername = choice;
+                }
             }
             
             showLoading();
             try {
+                // Sunucuya /api/execute-action isteği (değişiklik yok)
                 const response = await fetch('/api/execute-action', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -471,6 +505,7 @@
             }
         }
         
+        // Geri kalan yardımcı fonksiyonlar ve olay dinleyiciler (değişiklik yok)
         async function handleRefreshAllLimits() {
             showLoading();
             const refreshPromises = allRegisteredUsers.map(async (user) => {
@@ -486,16 +521,16 @@
         function showError(message) { errorText.textContent = message; errorMessageContainer.style.display = 'block'; }
         function hideError() { errorMessageContainer.style.display = 'none'; }
 
-        // Event Listeners
         if (closeErrorButton) closeErrorButton.addEventListener('click', hideError);
         if (addNewUserButton) addNewUserButton.addEventListener('click', () => { window.location.href = '/login.html?flow=new'; });
         if (refreshAllLimitsButton) refreshAllLimitsButton.addEventListener('click', handleRefreshAllLimits);
         
         document.addEventListener('DOMContentLoaded', async () => { 
             await populateAllUserCards(); 
+            // Sayfa yüklendiğinde artık güncellenmiş fonksiyon çağrılacak.
             await fetchAvailableActions(); 
 
-            // Clean URL after login
+            // URL temizleme (değişiklik yok)
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('login_success') && window.history.replaceState) {
                 const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
