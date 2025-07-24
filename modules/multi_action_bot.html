@@ -2,22 +2,25 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Gelişmiş Etkileşim Botu (İşçi Havuzlu v2)</title>
+    <title>Organik Etkileşim Botu (v3)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="multi_action_bot_client.js" defer></script>
     <style>
+        body { scroll-behavior: smooth; }
         .log-entry { border-bottom: 1px solid #374151; padding: 4px 0; }
         .log-entry:last-child { border-bottom: none; }
-        .pin-checkbox { appearance: none; width: 1.25rem; height: 1.25rem; border: 2px solid #9ca3af; border-radius: 0.25rem; cursor: pointer; position: relative; }
+        .pin-checkbox { appearance: none; width: 1.25rem; height: 1.25rem; border: 2px solid #9ca3af; border-radius: 0.25rem; cursor: pointer; position: relative; flex-shrink: 0; }
         .pin-checkbox:checked { border-color: #ef4444; background-color: #ef4444; }
         .pin-checkbox:checked::after { content: '📌'; color: white; font-size: 0.75rem; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: #4f46e5; cursor: pointer; border-radius: 50%; }
+        input[type=range]::-moz-range-thumb { width: 20px; height: 20px; background: #4f46e5; cursor: pointer; border-radius: 50%; }
     </style>
 </head>
 <body class="bg-slate-100 p-6">
-    <div class="container mx-auto max-w-4xl bg-white p-8 rounded-xl shadow-lg">
-        <h1 class="text-3xl font-bold text-slate-800 mb-6 border-b pb-4">Gelişmiş Etkileşim Botu</h1>
+    <div class="container mx-auto max-w-5xl bg-white p-8 rounded-xl shadow-lg">
+        <h1 class="text-3xl font-bold text-slate-800 mb-6 border-b pb-4">Organik Etkileşim Botu</h1>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
             <div>
                 <div class="mb-6">
                     <div class="flex justify-between items-center mb-2">
@@ -26,70 +29,81 @@
                             <option value="none">Seçim Yardımcısı</option>
                             <option value="all">Tümünü Seç</option>
                             <option value="clear">Seçimleri Temizle</option>
-                            <option value="random-5">Rastgele 5 Seç</option>
                             <option value="random-10">Rastgele 10 Seç</option>
                             <option value="random-20">Rastgele 20 Seç</option>
-                            <option value="random-30">Rastgele 30 Seç</option>
+                            <option value="random-50">Rastgele 50 Seç</option>
                         </select>
                     </div>
-                    <div id="userCheckboxesContainer" class="grid grid-cols-1 gap-1 max-h-48 overflow-y-auto p-2 border rounded-md">
-                        <p class="text-slate-500 italic">Kullanıcılar yükleniyor...</p>
+                    <div id="userCheckboxesContainer" class="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto p-2 border rounded-md bg-slate-50">
+                        <p class="text-slate-500 italic col-span-full">Kullanıcılar yükleniyor...</p>
                     </div>
-                    <p class="text-xs text-slate-500 mt-1">📌 ikonu ile işaretlenen hesaplar rastgele seçimden etkilenmez.</p>
+                    <p class="text-xs text-slate-500 mt-1">📌 ile sabitlenen hesaplar rastgele seçimden etkilenmez.</p>
                 </div>
 
                 <div class="mb-6">
                     <h2 class="text-lg font-semibold text-slate-700 mb-2">2. Hedef Gönderiler</h2>
-                    <div class="space-y-2">
+                    <div class="space-y-3">
                         <div>
                             <input type="radio" id="sourceUrl" name="postSource" value="url" checked class="accent-indigo-600">
                             <label for="sourceUrl">Belirli bir Gönderi URL'si:</label>
-                            <input type="text" id="targetPostUrl" placeholder="https://kullanici.tumblr.com/post/12345" class="w-full mt-1 p-2 border rounded-md">
+                            <input type="text" id="targetPostUrl" placeholder="https://kullanici.tumblr.com/post/12345" class="w-full mt-1 p-2 border rounded-md focus:ring-2 focus:ring-indigo-400">
                         </div>
                         <div>
                             <input type="radio" id="sourceBlog" name="postSource" value="blog" class="accent-indigo-600">
                             <label for="sourceBlog">Bir Blogun Son 20 Gönderisi:</label>
-                            <input type="text" id="targetBlogName" placeholder="kullanici" class="w-full mt-1 p-2 border rounded-md">
+                            <input type="text" id="targetBlogName" placeholder="kullanici" class="w-full mt-1 p-2 border rounded-md focus:ring-2 focus:ring-indigo-400">
                         </div>
                     </div>
                 </div>
 
                 <div class="mb-6">
-                    <h2 class="text-lg font-semibold text-slate-700 mb-2">3. İşlem Türü ve Ayarlar</h2>
-                    <select id="actionType" class="w-full p-2 border rounded-md mb-4">
+                    <h2 class="text-lg font-semibold text-slate-700 mb-2">3. İşlem Türü ve Zamanlama</h2>
+                    <select id="actionType" class="w-full p-2 border rounded-md mb-4 focus:ring-2 focus:ring-indigo-400">
                         <option value="like">Sadece Beğen (Like)</option>
                         <option value="reblog">Sadece Yeniden Blogla (Reblog)</option>
                         <option value="both" selected>Hem Beğen Hem Yeniden Blogla</option>
                     </select>
-                    <div id="reblogOptions" class="p-3 bg-slate-50 rounded-md border">
-                        <div class="flex items-center">
-                            <input type="checkbox" id="randomizeSchedule" class="h-4 w-4 rounded accent-indigo-500">
-                            <label for="randomizeSchedule" class="ml-2 text-sm">Reblogları ~60 dakika (+/- 30 dk) içinde rastgele zamanla</label>
+
+                    <div id="timingOptions" class="p-4 bg-slate-50 rounded-md border space-y-4">
+                        <div>
+                            <label for="minDelaySlider" class="block text-sm font-medium text-slate-600">Her Hesap İçin İşlemler Arası Minimum Bekleme: <span id="minDelayValue" class="font-bold text-indigo-600">5 saniye</span></label>
+                            <input id="minDelaySlider" type="range" min="5" max="60" value="5" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            <p class="text-xs text-slate-500 mt-1">Aynı hesabın iki gönderi üzerindeki eylemi arasında beklenecek en az süre.</p>
                         </div>
-                        <p class="text-xs text-slate-500 mt-1">İşaretli değilse, reblog işlemi anında yapılır.</p>
+                        <div id="reblogOptions">
+                            <label for="scheduleRandomizeSlider" class="block text-sm font-medium text-slate-600">Reblog Zamanlama Penceresi: <span id="scheduleRandomizeValue" class="font-bold text-indigo-600">Anında</span></p></label>
+                            <input id="scheduleRandomizeSlider" type="range" min="0" max="12" value="0" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            <p class="text-xs text-slate-500 mt-1">0 = Anında Reblog. 12 = Reblogları gelecek 24 saatlik bir zaman dilimine (+/- 12 saat) yay.</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div>
-                <h2 class="text-lg font-semibold text-slate-700 mb-2">4. İşlemi Başlat ve Takip Et</h2>
-                <button id="startButton" class="w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 font-bold text-lg transition-all duration-300 disabled:bg-slate-400">
-                    İŞLEMİ BAŞLAT
-                </button>
+                 <h2 class="text-lg font-semibold text-slate-700 mb-2">4. İşlemi Başlat ve Takip Et</h2>
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="startButton" class="w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 font-bold text-lg transition-all duration-300 disabled:bg-slate-400">
+                        BAŞLAT
+                    </button>
+                    <button id="stopButton" class="w-full bg-red-600 text-white py-3 px-4 rounded-md hover:bg-red-700 font-bold text-lg transition-all duration-300 disabled:bg-slate-400" disabled>
+                        DURDUR
+                    </button>
+                </div>
 
-                <div id="progressContainer" class="mt-4 hidden">
+
+                <div id="progressContainer" class="mt-6 hidden">
                     <div class="flex justify-between mb-1">
-                        <span id="progressText" class="text-sm font-medium text-slate-700">İşlem Kuyruğu</span>
+                        <span id="progressText" class="text-sm font-medium text-slate-700">Genel İlerleme</span>
                         <span id="progressPercentage" class="text-sm font-medium text-slate-700">0%</span>
                     </div>
-                    <div class="w-full bg-slate-200 rounded-full h-2.5">
-                        <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    <div class="w-full bg-slate-200 rounded-full h-3">
+                        <div id="progressBar" class="bg-indigo-600 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
                     </div>
                 </div>
 
                 <div id="logContainer" class="mt-4 hidden">
                      <h3 class="text-md font-semibold text-slate-700">İşlem Kayıtları:</h3>
-                     <div id="logArea" class="mt-2 p-3 bg-slate-800 text-white font-mono text-xs rounded-md h-96 overflow-y-auto"></div>
+                     <div id="logArea" class="mt-2 p-3 bg-slate-800 text-white font-mono text-xs rounded-md h-[450px] overflow-y-auto"></div>
                 </div>
             </div>
         </div>
