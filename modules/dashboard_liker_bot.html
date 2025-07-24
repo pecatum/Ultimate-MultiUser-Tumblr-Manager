@@ -1,4 +1,3 @@
-
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
@@ -55,7 +54,29 @@
         </header>
 
         <div class="mb-6 p-4 bg-white rounded-xl shadow-md">
-            <h3 class="text-lg font-semibold text-slate-700 mb-3">İşlem Yapılacak Hesapları Seçin:</h3>
+            <h3 class="text-lg font-semibold text-slate-700 mb-3">Genel Ayarlar (Tüm Seçili Hesaplar İçin) ⚙️</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                <div class="slider-container">
+                    <label for="globalPostsToLikeSlider" class="slider-label">Kullanıcı Başına Beğeni Sayısı:</label>
+                    <input type="range" id="globalPostsToLikeSlider" min="1" max="20" value="2" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300">
+                    <span class="slider-value ml-1"><span id="globalPostsToLikeValue">2</span> gönderi</span>
+                </div>
+                <div class="slider-container">
+                    <label for="globalRefreshIntervalSlider" class="slider-label">Panel Yenileme Aralığı:</label>
+                    <input type="range" id="globalRefreshIntervalSlider" min="0" max="4" value="3" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-300">
+                    <span class="slider-value ml-1"><span id="globalRefreshIntervalValue">5 Dakika</span></span>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="mb-6 p-4 bg-white rounded-xl shadow-md">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-lg font-semibold text-slate-700">İşlem Yapılacak Hesapları Seçin:</h3>
+                <button id="selectAllButton" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-1.5 px-3 rounded-md text-xs shadow-sm hover:shadow-md transition-all duration-150 ease-in-out">
+                    Tümünü Seç / Bırak
+                </button>
+            </div>
             <div id="moduleUserCheckboxesContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 <p class="text-slate-500 italic col-span-full py-4 text-center">Kullanıcılar yükleniyor...</p>
             </div>
@@ -124,13 +145,13 @@
             <div class="grid grid-cols-1 gap-y-3 mb-4">
                 <div class="slider-container">
                     <label class="slider-label">Kullanıcı Başına Beğenilecek Gönderi Sayısı:</label>
-                    <input type="range" data-template-field="postsToLikeSlider" min="1" max="20" value="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300">
-                    <span class="slider-value ml-1"><span data-template-field="postsToLikeValue">5</span> gönderi</span>
+                    <input type="range" data-template-field="postsToLikeSlider" min="1" max="20" value="2" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <span class="slider-value ml-1"><span data-template-field="postsToLikeValue">2</span> gönderi</span>
                 </div>
                 <div class="slider-container">
                     <label class="slider-label">Panel Yenileme Aralığı:</label>
-                    <input type="range" data-template-field="refreshIntervalSlider" min="0" max="4" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300">
-                    <span class="slider-value ml-1"><span data-template-field="refreshIntervalValue">1 Dakika</span></span>
+                    <input type="range" data-template-field="refreshIntervalSlider" min="0" max="4" value="3" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <span class="slider-value ml-1"><span data-template-field="refreshIntervalValue">5 Dakika</span></span>
                 </div>
             </div>
             <div class="flex items-center justify-center gap-3 mb-2">

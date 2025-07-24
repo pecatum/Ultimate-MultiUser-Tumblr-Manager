@@ -5,6 +5,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const multiUserLimitsDisplayArea = document.getElementById('multiUserLimitsDisplayArea');
     const userControlCardsContainer = document.getElementById('userControlCardsContainer');
     const actionLogArea = document.getElementById('actionLogArea');
+    // YENİ: Global UI Elementleri
+    const selectAllButton = document.getElementById('selectAllButton');
+    const globalPostsToLikeSlider = document.getElementById('globalPostsToLikeSlider');
+    const globalPostsToLikeValue = document.getElementById('globalPostsToLikeValue');
+    const globalRefreshIntervalSlider = document.getElementById('globalRefreshIntervalSlider');
+    const globalRefreshIntervalValue = document.getElementById('globalRefreshIntervalValue');
+
 
     // Templates
     const userLimitDisplayTemplate = document.getElementById('userLimitDisplayTemplate');
@@ -26,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedAppUsernames = new Set();
     let botInstances = {}; // Her kullanıcı için bot durumu, ayarları ve sayaçları
 
+    // GÜNCELLEME: Varsayılan ayarlar için indexler HTML'den okunacak. Bu map sabit kalıyor.
     const REFRESH_INTERVAL_MAP = [
         { value: 30 * 1000, label: "30 Saniye" },
         { value: 60 * 1000, label: "1 Dakika" },
@@ -39,6 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const LIKE_RETRY_COOLDOWN_MS = 60 * 1000; // 1 dakika
     const SHORT_RETRY_DELAY_MS = 2000; // Kısa denemeler arası bekleme
     const LIMIT_REFRESH_INTERVAL_MS = 30 * 1000; // Limitleri yenileme aralığı
+    // YENİ: Beğeniler arası bekleme süresi
+    const DELAY_BETWEEN_LIKES_MS = 2000;
 
     // --- Yardımcı Fonksiyonlar ---
     function logAction(message, type = 'info', appUsername = null) {
@@ -183,6 +193,21 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn(`[createBotInstanceCard] ${appUsername} için kart başlığı elemanı bulunamadı.`);
         }
         
+        // GÜNCELLEME: Varsayılan değerler artık Global Slider'lardan alınıyor.
+        const initialPostsToLike = parseInt(globalPostsToLikeSlider.value, 10);
+        const initialRefreshIntervalIndex = parseInt(globalRefreshIntervalSlider.value, 10);
+        const initialRefreshIntervalMap = REFRESH_INTERVAL_MAP[initialRefreshIntervalIndex];
+
+        const postsToLikeSliderEl = cardClone.querySelector('[data-template-field="postsToLikeSlider"]');
+        const refreshIntervalSliderEl = cardClone.querySelector('[data-template-field="refreshIntervalSlider"]');
+        const postsToLikeValueEl = cardClone.querySelector('[data-template-field="postsToLikeValue"]');
+        const refreshIntervalValueEl = cardClone.querySelector('[data-template-field="refreshIntervalValue"]');
+
+        postsToLikeSliderEl.value = initialPostsToLike;
+        postsToLikeValueEl.textContent = initialPostsToLike;
+        refreshIntervalSliderEl.value = initialRefreshIntervalIndex;
+        refreshIntervalValueEl.textContent = initialRefreshIntervalMap.label;
+
         const instance = {
             appUsername: appUsername,
             isRunning: false,
@@ -194,9 +219,9 @@ document.addEventListener('DOMContentLoaded', () => {
             likeRetryAttempt: 0, 
             isUnderCooldown: false, 
             config: {
-                postsToLike: parseInt(cardClone.querySelector('[data-template-field="postsToLikeSlider"]').value, 10),
-                refreshIntervalValue: REFRESH_INTERVAL_MAP[parseInt(cardClone.querySelector('[data-template-field="refreshIntervalSlider"]').value, 10)].value,
-                refreshIntervalLabel: REFRESH_INTERVAL_MAP[parseInt(cardClone.querySelector('[data-template-field="refreshIntervalSlider"]').value, 10)].label
+                postsToLike: initialPostsToLike,
+                refreshIntervalValue: initialRefreshIntervalMap.value,
+                refreshIntervalLabel: initialRefreshIntervalMap.label
             },
             elements: {
                 card: cardClone,
@@ -208,19 +233,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 processingUserLikesTotal: cardClone.querySelector('[data-template-field="processingUserLikesTotal"]'),
                 processingUserLikeProgressBar: cardClone.querySelector('[data-template-field="processingUserLikeProgressBar"]'),
                 botControlsAndSettingsContainer: cardClone.querySelector('[data-template-field="botControlsAndSettings"]'),
-                postsToLikeSlider: cardClone.querySelector('[data-template-field="postsToLikeSlider"]'),
-                postsToLikeValue: cardClone.querySelector('[data-template-field="postsToLikeValue"]'),
-                refreshIntervalSlider: cardClone.querySelector('[data-template-field="refreshIntervalSlider"]'),
-                refreshIntervalValue: cardClone.querySelector('[data-template-field="refreshIntervalValue"]'),
+                postsToLikeSlider: postsToLikeSliderEl,
+                postsToLikeValue: postsToLikeValueEl,
+                refreshIntervalSlider: refreshIntervalSliderEl,
+                refreshIntervalValue: refreshIntervalValueEl,
                 startButton: cardClone.querySelector('[data-template-field="startButton"]'),
                 stopButton: cardClone.querySelector('[data-template-field="stopButton"]'),
                 botStatusIndicator: cardClone.querySelector('[data-template-field="botStatusIndicator"]'),
                 botStatusText: cardClone.querySelector('[data-template-field="botStatusText"]'),
             }
         };
-
-        if(instance.elements.postsToLikeValue) instance.elements.postsToLikeValue.textContent = instance.config.postsToLike;
-        if(instance.elements.refreshIntervalValue) instance.elements.refreshIntervalValue.textContent = instance.config.refreshIntervalLabel;
         
         if(instance.elements.postsToLikeSlider) {
             instance.elements.postsToLikeSlider.addEventListener('input', function() {
@@ -468,13 +490,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function attemptLikeWithRetries(instance, targetUsername, postId, reblogKey) { // targetUsername eklendi
-        const appUsername = instance.appUsername; // Botu çalıştıran hesap
+    async function attemptLikeWithRetries(instance, targetUsername, postId, reblogKey) { 
+        const appUsername = instance.appUsername; 
         instance.currentLikePostId = postId;
         instance.likeRetryAttempt = 0;
         instance.isUnderCooldown = false;
 
-        // 1. Aşama: İlk X deneme
         for (let i = 0; i < MAX_INITIAL_LIKE_RETRIES; i++) {
             if (!instance.isRunning) return false;
             instance.likeRetryAttempt = i + 1;
@@ -488,13 +509,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (i < MAX_INITIAL_LIKE_RETRIES - 1) await delay(SHORT_RETRY_DELAY_MS * (i + 1));
                 } else {
                     logAction(`${targetUsername} > "${postId}" beğenilirken kritik hata (Deneme ${instance.likeRetryAttempt}): ${error.message}`, "error", appUsername);
-                    // Diğer kritik hatalar (token vs.) executeApiActionForModule içinde botu durdurmuş olabilir.
                     return false; 
                 }
             }
         }
 
-        // 2. Aşama: Cooldown
         if (!instance.isRunning) return false;
         logAction(`${targetUsername} > "${postId}" için ilk ${MAX_INITIAL_LIKE_RETRIES} deneme başarısız. ${LIKE_RETRY_COOLDOWN_MS / 1000} saniye bekleniyor...`, "warn", appUsername);
         instance.isUnderCooldown = true;
@@ -504,11 +523,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!instance.isRunning) return false;
         updateBotStatusForUser(appUsername, 'status-running', `${targetUsername} gönderileri beğeniliyor...`);
 
-        // 3. Aşama: Cooldown sonrası X deneme
         logAction(`${targetUsername} > "${postId}" için cooldown sonrası denemeler başlıyor...`, "info", appUsername);
         for (let i = 0; i < MAX_COOLDOWN_LIKE_RETRIES; i++) {
             if (!instance.isRunning) return false;
-            instance.likeRetryAttempt = MAX_INITIAL_LIKE_RETRIES + i + 1; // Toplam deneme sayısını doğru hesapla
+            instance.likeRetryAttempt = MAX_INITIAL_LIKE_RETRIES + i + 1; 
             logAction(`${targetUsername} > "${postId}" beğeniliyor (Cooldown Sonrası Deneme ${i + 1}/${MAX_COOLDOWN_LIKE_RETRIES})...`, "debug", appUsername);
             try {
                 await executeApiActionForModule('likeTumblrPost', { post_id: postId, reblog_key: reblogKey }, appUsername);
@@ -578,7 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
             logAction(`Panelden ${uniqueUsernamesInBatch.size} benzersiz kullanıcı bulundu.`, "info", appUsername);
             updateBotStatusForUser(appUsername, 'status-running', `${uniqueUsernamesInBatch.size} kullanıcı işleniyor...`);
 
-            for (const usernameToProcess of uniqueUsernamesInBatch) { // Bu döngüdeki usernameToProcess doğru
+            for (const usernameToProcess of uniqueUsernamesInBatch) { 
                 if (!instance.isRunning) break;
                 logAction(`Sıradaki: ${usernameToProcess}`, "system", appUsername);
                 try {
@@ -606,7 +624,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                 if (!instance.isRunning || likedCountForThisUser >= postsToLikeTargetCount) break;
 
                                 if (post.id_string && post.reblog_key) {
-                                    // attemptLikeWithRetries'e usernameToProcess'i de gönder
                                     const likedSuccessfully = await attemptLikeWithRetries(instance, usernameToProcess, post.id_string, post.reblog_key);
                                     
                                     if (likedSuccessfully) {
@@ -614,13 +631,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                         likedCountForThisUser++;
                                         updateProcessingUserLikeProgressFor(appUsername, likedCountForThisUser, postsToLikeTargetCount);
                                     } else {
-                                        if (instance.isRunning) { // Eğer bot hala çalışıyorsa (yani attemptLikeWithRetries içinde durdurulmadıysa)
+                                        if (instance.isRunning) { 
                                             logAction(`${usernameToProcess} > "${post.id_string}" için tüm denemeler başarısız oldu. Bot bu kullanıcı için durduruluyor.`, "error", appUsername);
                                             stopBotInstance(appUsername, true, "Limit Doldu (Tekrarlayan)");
                                             return; 
                                         }
                                     }
-                                    if (instance.isRunning) await delay(1000 + Math.random() * 500);
+                                    // GÜNCELLEME: Her beğeni sonrası bekleme
+                                    if (instance.isRunning) await delay(DELAY_BETWEEN_LIKES_MS);
                                 }
                             }
                             logAction(`${usernameToProcess}: ${likedCountForThisUser} gönderi beğenildi.`, "success", appUsername);
@@ -756,10 +774,67 @@ document.addEventListener('DOMContentLoaded', () => {
         updateBotStatusForUser(appUsername, finalStatusClass, finalStatusMessage);
         hideCurrentlyProcessingUserFor(appUsername);
     }
+    
+    // --- YENİ: Event Listener'lar ---
+
+    function setupGlobalControls() {
+        if(selectAllButton) {
+            selectAllButton.addEventListener('click', () => {
+                const checkboxes = moduleUserCheckboxesContainer.querySelectorAll('input[type="checkbox"]');
+                if(checkboxes.length === 0) return;
+
+                // Eğer hepsi seçili ise hepsini kaldır, değilse hepsini seç
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+
+                checkboxes.forEach(checkbox => {
+                    if (checkbox.checked !== !allChecked) {
+                         checkbox.checked = !allChecked;
+                         // Değişikliği tetikle ki kartlar oluşsun/kaldırılsın
+                         checkbox.dispatchEvent(new Event('change'));
+                    }
+                });
+                logAction(`Tüm hesaplar için seçim ${!allChecked ? 'yapıldı' : 'kaldırıldı'}.`, 'system');
+            });
+        }
+        
+        if(globalPostsToLikeSlider) {
+            globalPostsToLikeSlider.addEventListener('input', (e) => {
+                const newValue = e.target.value;
+                if(globalPostsToLikeValue) globalPostsToLikeValue.textContent = newValue;
+
+                // Tüm aktif bot instanslarının ayarlarını güncelle
+                for (const username in botInstances) {
+                    const instance = botInstances[username];
+                    instance.config.postsToLike = parseInt(newValue, 10);
+                    instance.elements.postsToLikeSlider.value = newValue;
+                    instance.elements.postsToLikeValue.textContent = newValue;
+                }
+            });
+        }
+
+        if(globalRefreshIntervalSlider) {
+            globalRefreshIntervalSlider.addEventListener('input', (e) => {
+                const newIndex = e.target.value;
+                const newMapItem = REFRESH_INTERVAL_MAP[newIndex];
+                if(globalRefreshIntervalValue) globalRefreshIntervalValue.textContent = newMapItem.label;
+
+                // Tüm aktif bot instanslarının ayarlarını güncelle
+                for (const username in botInstances) {
+                    const instance = botInstances[username];
+                    instance.config.refreshIntervalValue = newMapItem.value;
+                    instance.config.refreshIntervalLabel = newMapItem.label;
+                    instance.elements.refreshIntervalSlider.value = newIndex;
+                    instance.elements.refreshIntervalValue.textContent = newMapItem.label;
+                }
+            });
+        }
+    }
+
 
     // --- Başlangıç Ayarları ---
     async function initializeModule() {
         logAction("LikerBot Modülü (Gelişmiş Hata Yönetimi) Yükleniyor... 🛠️", "system");
+        setupGlobalControls(); // Yeni kontrolleri etkinleştir
         await fetchAndPopulateUsersForCheckboxes();
         if (selectedAppUsernames.size === 0 && multiUserLimitsDisplayArea) {
             const placeholder = multiUserLimitsDisplayArea.querySelector('p.text-slate-400');
