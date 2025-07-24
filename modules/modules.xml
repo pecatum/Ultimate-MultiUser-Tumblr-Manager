@@ -57,6 +57,7 @@
       <type>pageNavigation</type>
       <targetPage>/modules/auto_liker.html</targetPage>
     </module>
+
     <module
     id="multiAccountAutoFollowerPage"
     displayName="Çoklu Hesap Otomatik Takipçi (URL'den Not)"
@@ -330,18 +331,24 @@
 
     <module>
       <id>multiPostSchedulerPage</id>
-      <displayName>Çoklu Kullanıcı Reblog Planlayıcı</displayName> <description>Seçilen birden fazla kullanıcı için gönderileri anlık, sıralı veya zamanlanmış olarak YENİDEN BLOGLAR.</description> <type>pageNavigation</type>
+      <displayName>Çoklu Kullanıcı Reblog Planlayıcı</displayName> 
+      <description>Seçilen birden fazla kullanıcı için gönderileri anlık, sıralı veya zamanlanmış olarak YENİDEN BLOGLAR.</description> 
+      <type>pageNavigation</type>
       <targetPage>/modules/multi_post_scheduler.html</targetPage>
       <authenticationType>userTokenRequired</authenticationType>
     </module>
 
     <module>
-      <id>getPostDetailsForReblogApi</id> <displayName>Reblog İçin Gönderi Detaylarını Çek (Planlayıcı API)</displayName>
-      <description>Bir Tumblr gönderi URL'sinden reblog için gerekli temel detayları (ID, reblog anahtarı, kaynak blog) çeker.</description>
-      <script>postSchedulerHandler.js</script>
-      <handlerFunction>fetchPostDetailsForReblog</handlerFunction> <authenticationType>apiKey</authenticationType> <type>apiAction</type>
+      <id>getPostDetailsForTagReblogApi</id> 
+      <displayName>Tekil Gönderi Detaylarını Çek (Etiketle Reblog için)</displayName>
+      <description>Bir gönderinin reblog için gerekli detaylarını kullanıcı yetkisiyle çeker.</description>
+      <script>reblogHandler.js</script>
+      <handlerFunction>getPostDetailsForTagReblog</handlerFunction>
+      <authenticationType>userToken</authenticationType>
+      <type>apiAction</type>
       <params>
-        <param name="post_url" type="string" required="true" prompt="Reblog yapılacak gönderinin URL'si:"/>
+        <param name="blog_identifier" type="string" required="true"/>
+        <param name="post_id" type="string" required="true"/>
       </params>
     </module>
 
@@ -349,8 +356,8 @@
       <id>reblogPostApi</id>
       <displayName>Tumblr Gönderisini Yeniden Blogla (Planlayıcı API)</displayName>
       <description>Belirtilen kullanıcı için bir gönderiyi yeniden bloglar (sıraya ekler, yayınlar veya planlar).</description>
-      <script>multiTagReblogHandler.js</script>
-      <handlerFunction>processTagReblog</handlerFunction>
+      <script>postSchedulerHandler.js</script>
+      <handlerFunction>processReblogSubmission</handlerFunction>
       <authenticationType>userToken</authenticationType>
       <type>apiAction</type>
     </module>

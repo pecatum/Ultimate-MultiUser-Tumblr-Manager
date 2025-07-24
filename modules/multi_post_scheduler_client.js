@@ -40,7 +40,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const workerCountSlider = document.getElementById('workerCountSlider');
     const workerCountValue = document.getElementById('workerCountValue');
 
-    // DEĞİŞİKLİK: Rastgele zaman dağıtma slider'ı için yeni elementler
     const randomizeTimeSlider = document.getElementById('randomizeTimeSlider');
     const randomizeTimeValue = document.getElementById('randomizeTimeValue');
 
@@ -57,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Yardımcı Fonksiyonlar ---
     function logAction(message, type = 'info') {
+        const actionLogArea = document.getElementById('actionLogArea');
         if (!actionLogArea) return;
         const now = new Date();
         const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
@@ -506,7 +506,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentSendMode) { logAction("Lütfen bir reblog modu seçin (Anlık, Sıraya Ekle, Planla).", "warn"); return; }
         if (currentSendMode === 'schedule' && !currentScheduleScope) { logAction("Lütfen planlama kapsamını seçin (Bireysel, Toplu).", "warn"); return;}
 
-        // LİDER: İşlemi başlat ve ayarları yapılandır.
+        // İstemci tarafı doğrulama
+        if (currentSendMode === 'schedule' && currentScheduleScope === 'bulk') {
+            if (!bulkScheduleDateTimeInput || !bulkScheduleDateTimeInput.value) {
+                logAction("Toplu planlama için lütfen geçerli bir 'İlk Reblog Yayın Zamanı' seçin.", "error");
+                bulkScheduleDateTimeInput.focus();
+                bulkScheduleDateTimeInput.classList.add('border-red-500', 'ring', 'ring-red-200');
+                setTimeout(() => {
+                    bulkScheduleDateTimeInput.classList.remove('border-red-500', 'ring', 'ring-red-200');
+                }, 3000);
+                return;
+            }
+        }
+
         isProcessing = true;
         if(executeFinalActionButton) executeFinalActionButton.disabled = true;
         if(executeActionButtonDirect) executeActionButtonDirect.disabled = true;
@@ -523,7 +535,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const commonCommentText = commonReblogCommentInput ? commonReblogCommentInput.value.trim() : '';
         const commonTagsText = commonReblogTagsInput ? commonReblogTagsInput.value.trim() : '';
         
-        // DEĞİŞİKLİK: Her kullanıcı için zaman kaydırma ofsetini önceden hesapla
         const userTimeOffsets = new Map();
         if (currentSendMode === 'schedule' && currentScheduleScope === 'bulk' && randomizeTimeSlider && parseInt(randomizeTimeSlider.value, 10) > 0) {
             const randomizationMinutes = parseInt(randomizeTimeSlider.value, 10);
@@ -601,7 +612,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (bulkScheduleDateTimeInput && bulkScheduleDateTimeInput.value) {
                                 let baseTime = new Date(bulkScheduleDateTimeInput.value);
                                 
-                                // DEĞİŞİKLİK: Kullanıcıya özel zaman ofsetini uygula
                                 if (userTimeOffsets.has(appUsername)) {
                                     const userOffsetMinutes = userTimeOffsets.get(appUsername);
                                     baseTime.setMinutes(baseTime.getMinutes() + userOffsetMinutes);
@@ -627,6 +637,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     
                     logAction(`İŞÇİ #${workerId}: ${logMessagePrefix} görevini başlattı.`, "debug");
+
+                    // --- YENİ LOGLAMA (1) ---
+                    // Bu log, tarayıcının sunucuya hangi parametreleri gönderdiğini net bir şekilde gösterecek.
+                    console.log(`[İSTEMCİ-TARAFI TRACE] İşçi #${workerId} | Kullanıcı: ${appUsername} | Sunucuya gönderilen parametreler:`, JSON.stringify(submissionParams, null, 2));
+                    // --- LOGLAMA SONU ---
+
                     await executeApiActionForModule('reblogPostApi', submissionParams, appUsername);
                     logAction(`İŞÇİ #${workerId}: ${logMessagePrefix} görevini başarıyla tamamladı.`, "success");
 
@@ -669,7 +685,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // DEĞİŞİKLİK: Rastgele zaman slider'ı için olay dinleyici
     if (randomizeTimeSlider && randomizeTimeValue) {
         randomizeTimeSlider.addEventListener('input', (e) => {
             randomizeTimeValue.textContent = e.target.value;
