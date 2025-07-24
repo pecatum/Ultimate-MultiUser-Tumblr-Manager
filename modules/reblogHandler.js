@@ -2,14 +2,14 @@
 const { makeTumblrApiRequest } = require('./serverUtils');
 
 /**
- * DEĞİŞİKLİK: Fonksiyonun adı, bu modülün görevine özel olacak şekilde değiştirildi.
  * Belirli bir gönderinin detaylarını (reblog_key, uuid vb.)
  * kullanıcı yetkisiyle (user token) çeker.
  * @param {object} params - { blog_identifier, post_id } içermelidir.
  * @param {string} accessToken - İşlemi yapan kullanıcının erişim token'ı.
  * @param {string} appUsername - İşlemi yapan kullanıcının uygulama içi adı.
  */
-async function getPostDetailsForTagReblog(params, accessToken, appUsername) {
+// --- DEĞİŞİKLİK: Fonksiyonu doğrudan 'exports' nesnesine atıyoruz ---
+exports.getPostDetailsForTagReblog = async function(params, accessToken, appUsername) {
     const { blog_identifier, post_id } = params;
     const logPrefix = `[ReblogHandler-${appUsername}]`;
 
@@ -25,7 +25,7 @@ async function getPostDetailsForTagReblog(params, accessToken, appUsername) {
 
     try {
         const response = await makeTumblrApiRequest('GET', apiPath, accessToken, null, false, null, appUsername);
-        
+
         const postData = response.posts && Array.isArray(response.posts) ? response.posts[0] : response;
 
         if (!postData || !postData.reblog_key) {
@@ -39,7 +39,7 @@ async function getPostDetailsForTagReblog(params, accessToken, appUsername) {
             reblog_key: postData.reblog_key,
             original_tags: postData.tags || []
         };
-        
+
         console.log(`${logPrefix} Gönderi detayı başarıyla çekildi: ${result.parent_blog_name}/${result.parent_post_id}`);
         return result;
 
@@ -47,9 +47,6 @@ async function getPostDetailsForTagReblog(params, accessToken, appUsername) {
         console.error(`${logPrefix} Gönderi detayı çekme hatası:`, error);
         throw error;
     }
-}
-
-// DEĞİŞİKLİK: Dışa aktarılan fonksiyonun adı da güncellendi.
-module.exports = {
-    getPostDetailsForTagReblog
 };
+
+// Artık "module.exports" satırına ihtiyaç yok, çünkü fonksiyonu yukarıda doğrudan dışa aktardık.

@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         state: sendModeSelect.value === 'instant' ? 'published' : 'queue'
                     };
 
-                    await makeApiCall('reblogPostApi', params, username);
+                    await makeApiCall('reblogPostFromTagApi', params, username);
                     logAction(`[${username}] > ${post.blog_name} rebloglandı.`, "success");
                 } catch(e) { 
                     logAction(`[${task?.username}] reblog hatası: ${e.message}`, "error"); 

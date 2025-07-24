@@ -20,53 +20,13 @@
       </params>
     </module>
     <module>
-      <id>getSinglePostForReblogApi</id>
-      <displayName>Tekil Gönderi Detaylarını Çek (Reblog için)</displayName>
-      <description>Bir gönderinin reblog için gerekli detaylarını kullanıcı yetkisiyle çeker.</description>
-      <script>reblogHandler.js</script>
-      <handlerFunction>getSinglePostForReblog</handlerFunction>
-      <authenticationType>userToken</authenticationType>
-      <type>apiAction</type>
-      <params>
-        <param name="blog_identifier" type="string" required="true"/>
-        <param name="post_id" type="string" required="true"/>
-      </params>
-    </module>
-    
-    <module>
-      <id>shuffleUserQueue</id>
-      <displayName>Kullanıcı Kuyruğunu Karıştır (API)</displayName>
-      <description>Belirtilen kullanıcının sıraya eklenmiş gönderilerini rastgele karıştırır.</description>
-      <script>queueHandler.js</script>
-      <handlerFunction>shuffleQueue</handlerFunction>
-      <authenticationType>userToken</authenticationType>
-      <type>apiAction</type>
-    </module>
-    <module>
-      <id>multiActionBotPage</id>
-      <displayName>Gelişmiş Etkileşim Botu (RB/Like)</displayName>
-      <description>Seçilen bloglardan, belirli bir gönderiye veya bir blogun son gönderilerine zamanlanmış reblog ve/veya anlık beğeni yapar.</description>
-      <type>pageNavigation</type>
-      <targetPage>/modules/multi_action_bot.html</targetPage>
-      <authenticationType>userTokenRequired</authenticationType>
-    </module>
-    <module>
       <id>autoLikerPage</id>
       <displayName>Otomatik Beğeni Modülü (DİKKATLİ KULLANIN!)</displayName>
       <description>Paneldeki ve rebloglayanların bloglarındaki gönderileri otomatik olarak beğenir.</description>
       <type>pageNavigation</type>
       <targetPage>/modules/auto_liker.html</targetPage>
     </module>
-
-    <module
-    id="multiAccountAutoFollowerPage"
-    displayName="Çoklu Hesap Otomatik Takipçi (URL'den Not)"
-    description="URL'lerdeki notlardan bulunan blogları, seçilen birden fazla hesapla otomatik olarak takip eder ve gönderilerini beğenir."
-    type="pageNavigation"
-    targetPage="/modules/multi_account_follower.html"
-    authenticationType="userTokenRequired">
-</module>
-    <module>
+        <module>
       <id>multiReblogFromTagPage</id>
       <displayName>Etiketten Çoklu Reblog Planlayıcı</displayName>
       <description>Belirli bir etiketten çekilen gönderileri, seçilen birden fazla kullanıcı için anlık, sıralı veya zamanlanmış olarak yeniden bloglar.</description>
@@ -107,19 +67,19 @@
       </params>
     </module>
     <module>
-      <id>getTaggedPosts</id>
-      <displayName>Etiketlenmiş Gönderileri Al (API)</displayName>
-      <description>Belirtilen bir etikete sahip gönderileri çeker.</description>
-      <script>taggedPostHandler.js</script>
-      <handlerFunction>fetchTaggedPosts</handlerFunction>
-      <authenticationType>apiKey</authenticationType>
-      <type>apiAction</type>
-      <params>
-        <param name="tag" type="string" required="true"/>
-        <param name="before" type="number" required="false"/>
-        <param name="limit" type="number" required="false" default="20"/>
-      </params>
-    </module>
+  <id>getTaggedPosts</id>
+  <displayName>Etiketlenmiş Gönderileri Al (API)</displayName>
+  <description>Belirtilen bir etikete sahip gönderileri çeker.</description>
+  <script>taggedPostHandler.js</script>
+  <handlerFunction>fetchTaggedPosts</handlerFunction>
+  <authenticationType>apiKey</authenticationType>
+  <type>apiAction</type>
+  <params>
+    <param name="tag" type="string" required="true"/>
+    <param name="before" type="number" required="false"/>
+    <param name="limit" type="number" required="false" default="20"/>
+  </params>
+</module>
     <module
             id="urlNoteExtractorModule"
             displayName="URL'den Not Çekerek Takip Önerisi"
@@ -128,7 +88,7 @@
             description="Belirtilen gönderi URL'lerindeki notlardan potansiyel blogları bulur ve takip önerileri sunar."
             authenticationType="userTokenRequired"> </module>
 
-    <module
+        <module
             id="fetchNotesFromPostUrl"
             displayName="Fetch Notes from Specific Post URL"
             description="Belirli bir gönderi URL'sinden notları API anahtarı ile çeker."
@@ -140,7 +100,7 @@
                 <param name="post_id" type="string" required="true" prompt="Post ID"/>
                 <param name="mode" type="string" required="false" default="all" prompt="Notes mode (all, likes, conversation, etc.)"/>
                 </params>
-    </module>
+        </module>
     <module>
       <id>followSuggesterPage</id>
       <displayName>Takip Önerileri Modülü</displayName>
@@ -254,7 +214,7 @@
         </params>
     </module>
     
-    <module>
+        <module>
       <id>simpleDashboardLikerPage</id>
       <displayName>Arka Plan Dashboard Liker</displayName>
       <description>Tarayıcıdan bağımsız olarak, paneldeki gönderileri belirli kurallara göre otomatik olarak beğenir.</description>
@@ -271,7 +231,7 @@
       <authenticationType>userTokenRequired</authenticationType>
     </module>
 
-    <module>
+        <module>
       <id>originalPostFinderPage</id>
       <displayName>Orijinal Gönderi Bulucu</displayName>
       <description>Herhangi bir blogun sadece orijinal (reblog olmayan) gönderilerini bulur ve listeler.</description>
@@ -296,7 +256,7 @@
       </params>
     </module>
 
-    <module>
+        <module>
       <id>multiPostRepublisherPage</id>
       <displayName>Çoklu İş Parçacıklı Gönderi Klonlayıcı</displayName>
       <description>Verilen URL'lerdeki gönderileri seçilen hesaptan orijinal gönderi olarak anlık, sıralı veya zamanlanmış şekilde yeniden gönderir.</description>
@@ -326,21 +286,49 @@
       <handlerFunction>processNewPostSubmission</handlerFunction>
       <authenticationType>userToken</authenticationType>
       <type>apiAction</type>
-    </module>
+      </module>
 
 
     <module>
       <id>multiPostSchedulerPage</id>
-      <displayName>Çoklu Kullanıcı Reblog Planlayıcı</displayName> 
-      <description>Seçilen birden fazla kullanıcı için gönderileri anlık, sıralı veya zamanlanmış olarak YENİDEN BLOGLAR.</description> 
-      <type>pageNavigation</type>
+      <displayName>Çoklu Kullanıcı Reblog Planlayıcı</displayName> <description>Seçilen birden fazla kullanıcı için gönderileri anlık, sıralı veya zamanlanmış olarak YENİDEN BLOGLAR.</description> <type>pageNavigation</type>
       <targetPage>/modules/multi_post_scheduler.html</targetPage>
       <authenticationType>userTokenRequired</authenticationType>
     </module>
 
     <module>
-      <id>getPostDetailsForTagReblogApi</id> 
-      <displayName>Tekil Gönderi Detaylarını Çek (Etiketle Reblog için)</displayName>
+      <id>getPostDetailsForReblogApi</id> <displayName>Reblog İçin Gönderi Detaylarını Çek (Planlayıcı API)</displayName>
+      <description>Bir Tumblr gönderi URL'sinden reblog için gerekli temel detayları (ID, reblog anahtarı, kaynak blog) çeker.</description>
+      <script>postSchedulerHandler.js</script>
+      <handlerFunction>fetchPostDetailsForReblog</handlerFunction> <authenticationType>apiKey</authenticationType> <type>apiAction</type>
+      <params>
+        <param name="post_url" type="string" required="true" prompt="Reblog yapılacak gönderinin URL'si:"/>
+      </params>
+    </module>
+
+<module>
+      <id>reblogPostApi</id> 
+      <displayName>Tumblr Gönderisini Yeniden Blogla (Planlayıcı API)</displayName>
+      <description>Belirtilen kullanıcı için bir gönderiyi yeniden bloglar (sıraya ekler, yayınlar veya planlar).</description>
+      <script>postSchedulerHandler.js</script>
+      <handlerFunction>processReblogSubmission</handlerFunction> 
+      <authenticationType>userToken</authenticationType>
+      <type>apiAction</type>
+</module>
+
+<module>
+      <id>reblogPostFromTagApi</id> 
+      <displayName>Tumblr Gönderisini Etiketten Reblogla (API)</displayName>
+      <description>Etiketten Reblog modülü için bir gönderiyi yeniden bloglar (sadece sıraya ekler veya yayınlar).</description>
+      <script>multiTagReblogHandler.js</script>
+      <handlerFunction>processTagReblog</handlerFunction> 
+      <authenticationType>userToken</authenticationType>
+      <type>apiAction</type>
+</module>
+
+<module>
+      <id>getSinglePostForReblogApi</id>
+      <displayName>Tekil Gönderi Detaylarını Çek (Reblog için)</displayName>
       <description>Bir gönderinin reblog için gerekli detaylarını kullanıcı yetkisiyle çeker.</description>
       <script>reblogHandler.js</script>
       <handlerFunction>getPostDetailsForTagReblog</handlerFunction>
@@ -353,13 +341,29 @@
     </module>
 
     <module>
-      <id>reblogPostApi</id>
-      <displayName>Tumblr Gönderisini Yeniden Blogla (Planlayıcı API)</displayName>
-      <description>Belirtilen kullanıcı için bir gönderiyi yeniden bloglar (sıraya ekler, yayınlar veya planlar).</description>
-      <script>postSchedulerHandler.js</script>
-      <handlerFunction>processReblogSubmission</handlerFunction>
+      <id>shuffleUserQueue</id>
+      <displayName>Kullanıcı Kuyruğunu Karıştır (API)</displayName>
+      <description>Belirtilen kullanıcının sıraya eklenmiş gönderilerini rastgele karıştırır.</description>
+      <script>queueHandler.js</script>
+      <handlerFunction>shuffleQueue</handlerFunction>
       <authenticationType>userToken</authenticationType>
       <type>apiAction</type>
+    </module>
+    <module>
+      <id>multiActionBotPage</id>
+      <displayName>Gelişmiş Etkileşim Botu (RB/Like)</displayName>
+      <description>Seçilen bloglardan, belirli bir gönderiye veya bir blogun son gönderilerine zamanlanmış reblog ve/veya anlık beğeni yapar.</description>
+      <type>pageNavigation</type>
+      <targetPage>/modules/multi_action_bot.html</targetPage>
+      <authenticationType>userTokenRequired</authenticationType>
+    </module>
+    <module>
+      <id>multiAccountAutoFollowerPage</id>
+      <displayName>Çoklu Hesap Otomatik Takipçi (URL'den Not)</displayName>
+      <description>URL'lerdeki notlardan bulunan blogları, seçilen birden fazla hesapla otomatik olarak takip eder ve gönderilerini beğenir.</description>
+      <type>pageNavigation</type>
+      <targetPage>/modules/multi_account_follower.html</targetPage>
+      <authenticationType>userTokenRequired</authenticationType>
     </module>
     
   </modules>

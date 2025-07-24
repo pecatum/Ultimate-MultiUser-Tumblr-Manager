@@ -1,14 +1,12 @@
 // modules/postSchedulerHandler.js
-
-// Gerekli yardımcı modülleri içe aktarıyoruz.
 const { makeTumblrApiRequest, getTumblrAppConfig } = require('./serverUtils');
+// getUsersInternal fonksiyonunu tokenRefresher'dan alıyoruz, server.js'i değiştirmemek için.
 const { getUsersInternal } = require('./tokenRefresher');
 
 /**
- * Verilen bir Tumblr gönderi URL'sinden reblog işlemi için gerekli bilgileri (ID, reblog_key, kaynak blog UUID vb.) çeker.
- * Bu fonksiyon, kullanıcı girişi gerektirmeyen, yalnızca uygulama API anahtarı ile çalışır.
- * @param {object} params - İçerisinde 'post_url' bulunan nesne.
- * @returns {object} - Reblog için gereken gönderi detayları.
+ * Verilen bir Tumblr gönderi URL'sinden reblog için gerekli temel bilgileri çeker.
+ * (ID, reblog_key, kaynak blog adı/uuid, orijinal etiketler)
+ * API Anahtarı ile çalışır.
  */
 async function fetchPostDetailsForReblog(params) {
     const { post_url } = params;
@@ -21,56 +19,68 @@ async function fetchPostDetailsForReblog(params) {
 
     let blogIdentifier, postId;
     try {
-        // Gelen URL'yi ayrıştırarak blog adını ve gönderi ID'sini bulmaya çalışıyoruz.
         const urlObj = new URL(post_url);
         const pathParts = urlObj.pathname.toLowerCase().split('/').filter(part => part.length > 0);
 
         if (urlObj.hostname.endsWith('.tumblr.com')) {
             blogIdentifier = urlObj.hostname.split('.')[0];
-            if (blogIdentifier === 'www' || blogIdentifier === 'assets') {
-                if (pathParts.length > 0) blogIdentifier = pathParts[0];
-                else { throw new Error("Blog adı www.tumblr.com URL'sinden ayrıştırılamadı."); }
-            }
+             if (blogIdentifier === 'www' || blogIdentifier === 'assets') {
+                if (pathParts.length > 0) blogIdentifier = pathParts[0]; else { throw new Error("Blog adı www.tumblr.com URL'sinden ayrıştırılamadı.");}
+             }
         } else {
             if (urlObj.hostname === 'www.tumblr.com' || urlObj.hostname === 'tumblr.com') {
-                if (pathParts.length > 0) blogIdentifier = pathParts[0];
-                else { throw new Error("Blog adı tumblr.com URL'sinden ayrıştırılamadı."); }
+                if (pathParts.length > 0) blogIdentifier = pathParts[0]; else { throw new Error("Blog adı tumblr.com URL'sinden ayrıştırılamadı.");}
             } else {
                 blogIdentifier = urlObj.hostname;
             }
         }
 
+        let potentialPostIdIndex = -1;
         const postKeywordIndex = pathParts.indexOf('post');
         if (postKeywordIndex !== -1 && pathParts.length > postKeywordIndex + 1) {
-            postId = pathParts[postKeywordIndex + 1].match(/^\d+/)?.[0];
+            potentialPostIdIndex = postKeywordIndex + 1;
+        } else {
+            const blogIdentifierInPathIndex = pathParts.indexOf(blogIdentifier.toLowerCase());
+            if (blogIdentifierInPathIndex !== -1 && pathParts.length > blogIdentifierInPathIndex + 1) {
+                potentialPostIdIndex = blogIdentifierInPathIndex + 1;
+            } else if (blogIdentifierInPathIndex === -1 && pathParts.length > 0 && blogIdentifier === urlObj.hostname) {
+                potentialPostIdIndex = 0;
+            }
         }
 
-        if (!postId) {
-            const lastPart = pathParts[pathParts.length - 1];
-            const numericMatch = lastPart.match(/^(\d+)/);
-            if (numericMatch) postId = numericMatch[1];
+        if (potentialPostIdIndex !== -1 && pathParts.length > potentialPostIdIndex) {
+            const idCandidate = pathParts[potentialPostIdIndex];
+            if (/^\d+$/.test(idCandidate)) postId = idCandidate;
+        }
+        
+        if (!postId && pathParts.length > 0) {
+             const lastPart = pathParts[pathParts.length - 1];
+             const numericMatch = lastPart.match(/^(\d+)/);
+             if(numericMatch) postId = numericMatch[1];
         }
 
         if (!blogIdentifier || !postId) {
             console.error(`${logPrefix} URL'den blog adı (${blogIdentifier}) veya gönderi ID'si (${postId}) düzgün ayrılamadı: ${post_url}`);
-            throw new Error(`URL'den blog adı veya gönderi ID'si ayrıştırılamadı.`);
+            throw new Error(`URL'den blog adı veya gönderi ID'si ayrıştırılamadı. Ayrıştırılan: blog='${blogIdentifier}', id='${postId}'.`);
         }
-        console.log(`${logPrefix} URL ayrıştırıldı: Kaynak Blog='${blogIdentifier}', Kaynak PostID='${postId}'`);
+        console.log(`${logPrefix} URL (reblog için) ayrıştırıldı: Kaynak Blog='${blogIdentifier}', Kaynak PostID='${postId}'`);
 
     } catch (e) {
-        console.error(`${logPrefix} URL ayrıştırma hatası: ${post_url}`, e);
-        throw { statusCode: 400, message: `Geçersiz gönderi URL'si: ${e.message}` };
+        console.error(`${logPrefix} URL ayrıştırma hatası (reblog için): ${post_url}`, e);
+        throw { statusCode: 400, message: `Geçersiz gönderi URL'si (reblog için): ${e.message}` };
     }
 
-    // Tumblr uygulama konfigürasyonundan API anahtarını alıyoruz.
-    const config = await getTumblrAppConfig();
-    const apiKey = config.oauthConsumerKey;
-    if (!apiKey) {
-        throw { statusCode: 500, message: "Sunucu yapılandırma hatası: API Anahtarı bulunamadı." };
+    let apiKey;
+    try {
+        const config = await getTumblrAppConfig();
+        apiKey = config.oauthConsumerKey;
+        if (!apiKey) throw new Error("API Anahtarı yapılandırmada bulunamadı.");
+    } catch (configError) {
+        throw { statusCode: 500, message: "Reblog detayları çekilirken sunucu yapılandırma hatası." };
     }
 
     const apiPath = `/blog/${blogIdentifier}/posts?id=${postId}&reblog_info=true&npf=true`;
-    console.log(`${logPrefix} Tumblr'dan gönderi detayları isteniyor. Path: ${apiPath}`);
+    console.log(`${logPrefix} Tumblr'dan gönderi detayları (reblog için) isteniyor. Path: ${apiPath}`);
 
     try {
         const response = await makeTumblrApiRequest('GET', apiPath, null, null, true, apiKey, null);
@@ -78,10 +88,10 @@ async function fetchPostDetailsForReblog(params) {
         if (response && response.posts && response.posts.length > 0) {
             const postData = response.posts[0];
             if (!postData.reblog_key) {
-                console.warn(`${logPrefix} Gönderi (${postData.id_string}) için reblog_key bulunamadı. Reblog yapılamaz.`);
-                throw { statusCode: 400, message: `Bu gönderi yeniden bloglanamaz olabilir (reblog anahtarı eksik).` };
+                console.warn(`${logPrefix} Gönderi (${postData.id_string}) için reblog_key bulunamadı. Reblog yapılamaz.`, postData);
+                throw { statusCode: 400, message: `Gönderi (${postData.id_string}) için reblog anahtarı bulunamadı. Bu gönderi yeniden bloglanamaz olabilir.` };
             }
-            console.log(`${logPrefix} Reblog için gönderi detayları başarıyla çekildi: Kaynak Blog: ${postData.blog_name}`);
+            console.log(`${logPrefix} Reblog için gönderi detayları çekildi: Kaynak Blog Adı: ${postData.blog_name}, Kaynak Blog UUID: ${postData.blog?.uuid}, Post ID: ${postData.id_string}, Reblog Key (ilk 5): ${postData.reblog_key.substring(0,5)}...`);
             return {
                 original_url: post_url,
                 parent_blog_name: postData.blog_name,
@@ -92,22 +102,17 @@ async function fetchPostDetailsForReblog(params) {
                 summary: postData.summary || `Reblog: ${postData.blog_name}/${postData.id_string}`,
             };
         } else {
-            throw { statusCode: 404, message: "Belirtilen URL için gönderi bulunamadı." };
+            throw { statusCode: 404, message: "Belirtilen URL için reblog yapılacak gönderi bulunamadı." };
         }
     } catch (error) {
-        console.error(`${logPrefix} Gönderi detayı çekme hatası: URL: ${post_url}`, error);
+        console.error(`${logPrefix} Reblog için gönderi detayı çekme hatası: URL: ${post_url}`, error);
         throw error;
     }
 }
 
 /**
- * Bir Tumblr gönderisini belirtilen kullanıcı adına yeniden bloglar (reblog).
- * Anında yayınlama, sıraya ekleme ve planlama işlemlerini destekler.
- * Bu fonksiyon, kullanıcıya özel Access Token ile çalışır.
- * @param {object} params - İstemciden gelen reblog parametreleri.
- * @param {object} accessToken - İşlemi yapacak kullanıcının access token'ı.
- * @param {string} appUsername - İşlemi yapacak kullanıcının uygulama içi adı.
- * @returns {object} - Tumblr API'sinden dönen yanıt.
+ * Bir Tumblr gönderisini belirtilen kullanıcı adına yeniden bloglar.
+ * Kullanıcı Token'ı ile çalışır.
  */
 async function processReblogSubmission(params, accessToken, appUsername) {
     const logPrefix = `[PostSchedulerHandler-${appUsername}] (Reblog)`;
@@ -116,12 +121,12 @@ async function processReblogSubmission(params, accessToken, appUsername) {
     if (!appUsername) {
         throw { statusCode: 401, message: "Bu işlem için kullanıcı kimliği (appUsername) gereklidir.", needsReAuth: true };
     }
-
     const { parent_tumblelog_uuid, parent_post_id, reblog_key, comment_npf, tags_array, post_state, publish_on_iso } = params;
 
     if (!parent_tumblelog_uuid || !parent_post_id || !reblog_key) {
         throw { statusCode: 400, message: "Reblog yapmak için kaynak blog UUID, kaynak gönderi ID ve reblog anahtarı gereklidir." };
     }
+    const effective_post_state = post_state || 'published';
 
     const users = await getUsersInternal();
     const currentUser = users.find(u => u.appUsername === appUsername);
@@ -133,41 +138,29 @@ async function processReblogSubmission(params, accessToken, appUsername) {
     console.log(`${logPrefix} Hedef blog: ${targetBlogIdentifier}`);
 
     const apiPath = `/blog/${targetBlogIdentifier}/posts`;
-    // API'ye gönderilecek temel reblog bilgilerini hazırlıyoruz.
     const requestBody = {
         parent_tumblelog_uuid: parent_tumblelog_uuid,
         parent_post_id: parent_post_id,
         reblog_key: reblog_key,
+        state: effective_post_state,
     };
 
-    // İstemciden yorum gelmişse, NPF formatında content olarak ekliyoruz.
     if (comment_npf && Array.isArray(comment_npf) && comment_npf.length > 0) {
         requestBody.content = comment_npf;
     }
 
-    // İstemciden etiket gelmişse, virgülle ayrılmış bir string olarak ekliyoruz.
     if (tags_array && Array.isArray(tags_array) && tags_array.length > 0) {
         requestBody.tags = tags_array.join(',');
     }
-
-    // --- GÖNDERİ DURUMU VE PLANLAMA MANTIĞI (DÜZELTİLMİŞ) ---
-    // Eğer belirli bir yayınlanma zamanı (publish_on_iso) gönderilmişse, bu planlı bir gönderidir.
-    // Bu durumda 'state' 'queue' olmalı ve 'publish_on' zamanı eklenmelidir.
-    if (post_state === 'queue' && publish_on_iso) {
-        requestBody.state = 'queue';
+    if (effective_post_state === 'queue' && publish_on_iso) {
         requestBody.publish_on = publish_on_iso;
-    } else {
-        // Eğer bir yayın zamanı belirtilmemişse, bu ya "anında yayınla" ya da "sıraya ekle" işlemidir.
-        // İstemciden gelen 'post_state' kullanılır. Eğer o da gelmemişse, varsayılan olarak 'published' kabul edilir.
-        requestBody.state = post_state || 'published';
     }
-    // --- DÜZELTME SONU ---
 
     console.log(`${logPrefix} Tumblr'a reblog isteği gönderiliyor. Path: ${apiPath}, Body:`, requestBody);
 
     try {
         const response = await makeTumblrApiRequest('POST', apiPath, accessToken, requestBody, false, null, appUsername);
-        console.log(`${logPrefix} Gönderi başarıyla '${requestBody.state}' durumunda yeniden bloglandı. Yanıt ID: ${response.id_string || response.id || 'Bilinmiyor'}`);
+        console.log(`${logPrefix} Gönderi başarıyla ${requestBody.state} durumunda yeniden bloglandı. Yanıt ID: ${response.id_string || response.id || 'Bilinmiyor'}`);
         return response;
     } catch (error) {
         console.error(`${logPrefix} Yeniden bloglama hatası:`, error);
@@ -175,7 +168,6 @@ async function processReblogSubmission(params, accessToken, appUsername) {
     }
 }
 
-// Fonksiyonları dışa aktarıyoruz ki uygulamanın başka yerlerinde kullanılabilsin.
 module.exports = {
     fetchPostDetailsForReblog,
     processReblogSubmission,
