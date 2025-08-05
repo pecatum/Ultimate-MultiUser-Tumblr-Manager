@@ -365,6 +365,97 @@
       <targetPage>/modules/multi_account_follower.html</targetPage>
       <authenticationType>userTokenRequired</authenticationType>
     </module>
-    
+
+    <module>
+  <id>multiAccountDashboardPage</id>
+  <displayName>Çoklu Hesap Yönetim Paneli</displayName>
+  <description>Seçilen hesapların bildirimlerini, sorularını ve diğer etkileşimlerini tek bir ekrandan yönetin.</description>
+  <type>pageNavigation</type>
+  <targetPage>/modules/multi_account_dashboard.html</targetPage>
+  <authenticationType>userTokenRequired</authenticationType>
+</module>
+
+<module>
+  <id>getBlogNotifications</id>
+  <displayName>Blog Bildirimlerini Al (API)</displayName>
+  <description>Bir blogun aktivite akışını (bildirimlerini) çeker.</description>
+  <script>notificationsHandler.js</script>
+  <handlerFunction>getBlogNotifications</handlerFunction>
+  <authenticationType>userToken</authenticationType>
+  <type>apiAction</type>
+  <params>
+    <param name="before" type="number" required="false" />
+    <param name="types" type="string" required="false" /> </params>
+</module>
+
+<module>
+  <id>getBlogSubmissions</id>
+  <displayName>Gelen Soruları Al (Submissions API)</displayName>
+  <description>Bir blogun yanıtlanmamış sorularını (submission) çeker.</description>
+  <script>submissionsHandler.js</script>
+  <handlerFunction>getBlogSubmissions</handlerFunction>
+  <authenticationType>userToken</authenticationType>
+  <type>apiAction</type>
+</module>
+
+<module>
+  <id>answerAsk</id>
+  <displayName>Soruyu Yanıtla (API)</displayName>
+  <description>Gelen bir soruyu (submission) yanıtlayarak yayınlar.</description>
+  <script>askHandler.js</script>
+  <handlerFunction>answerAsk</handlerFunction>
+  <authenticationType>userToken</authenticationType>
+  <type>apiAction</type>
+</module>
+
+<module>
+  <id>generateAskAnswerOpenAi</id>
+  <displayName>OpenAI ile Cevap Oluştur (API)</displayName>
+  <description>Verilen bir soru metni için OpenAI kullanarak otomatik bir cevap taslağı oluşturur.</description>
+  <script>openAiHandler.js</script>
+  <handlerFunction>generateAnswer</handlerFunction>
+  <authenticationType>apiKey</authenticationType> <type>apiAction</type>
+  <params>
+      <param name="question_text" type="string" required="true" />
+  </params>
+</module>
+
+<module>
+  <id>getAuthenticatedUserData</id>
+  <displayName>Kimliği Doğrulanmış Kullanıcı Verilerini Al (API)</displayName>
+  <description>Bir kullanıcının token'ını kullanarak avatar, takipçi sayısı gibi temel profil bilgilerini çeker.</description>
+  <script>userInfoHandler.js</script>
+  <handlerFunction>getAuthenticatedUserData</handlerFunction>
+  <authenticationType>userToken</authenticationType>
+  <type>apiAction</type>
+</module>
+    <!-- modules/modules.xml -->
+
+<!-- 1. KULLANICI SEVİYESİ YETKİLENDİRME: Kendi hesaplarımızın özel verilerini çekmek için. -->
+
+<module>
+  <id>getUserDataForDashboard</id>
+  <displayName>Dashboard için Kullanıcı Verisi Al</displayName>
+  <description>Çoklu hesap panelinin ihtiyaç duyduğu kullanıcı verilerini çeker.</description>
+  <script>userInfoHandler_fordashboard.js</script>
+  <handlerFunction>getUserDataForDashboard</handlerFunction>
+  <authenticationType>userToken</authenticationType>
+  <type>apiAction</type>
+</module>
+
+<!-- 2. UYGULAMA SEVİYESİ YETKİLENDİRME: Herkese açık blog bilgilerini çekmek için. -->
+<module>
+  <id>fetchExternalBlogInfoApi</id>
+  <displayName>Harici Blog Bilgisi (JSON Sonuç)</displayName>
+  <description>Bir Tumblr blogunun genel bilgilerini ve son gönderilerini API üzerinden çeker ve sonucu bu sayfada JSON olarak gösterir.</description>
+  <script>blogInfoHandler.js</script>
+  <handlerFunction>getExternalBlogData</handlerFunction>
+  <authenticationType>apiKey</authenticationType>
+  <type>apiAction</type>
+  <params>
+    <param name="blog_identifier" type="string" required="true"/>
+  </params>
+</module>
+
   </modules>
 </modulesConfig>

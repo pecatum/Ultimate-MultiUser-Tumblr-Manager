@@ -1,0 +1,133 @@
+/* Genel Stil ve Animasyonlar */
+body {
+    font-family: 'Inter', sans-serif;
+    overflow-y: hidden;
+}
+
+.feed-item {
+    border-left: 3px solid transparent;
+    transition: all 0.2s ease-in-out;
+}
+
+.feed-item:hover {
+    border-left-color: #3b82f6;
+    background-color: #f9fafb;
+}
+
+.feed-item .actions {
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.feed-item:hover .actions {
+    opacity: 1;
+}
+
+.loader {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 1s linear infinite;
+}
+
+.loader-sm {
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid #fff;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+
+/* Blog bilgisi hover kartı için stiller */
+#blog-hover-card {
+    position: absolute;
+    z-index: 100;
+    width: 280px;
+    background-color: #181a1b;
+    color: white;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    overflow: hidden;
+    display: none;
+    transition: opacity 0.2s;
+    padding-bottom: 8px;
+}
+
+.blog-card-header {
+    height: 90px;
+    background-size: cover;
+    background-position: center;
+}
+
+.blog-card-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 6px;
+    border: 3px solid #181a1b;
+    margin-top: -32px;
+    margin-left: 12px;
+}
+
+.blog-card-posts img {
+    width: 100%;
+    height: 70px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+/* ... mevcut .blog-card-posts img stili sonrası ... */
+
+/* YENİ: Gönderi hover kartı için stiller */
+#post-hover-card {
+    position: absolute;
+    z-index: 101; /* Blog kartının üzerinde olması için daha yüksek z-index */
+    display: none;
+    transition: opacity 0.2s;
+}
+/* YENİ: AI Slider Stilleri */
+.ai-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: #e5e7eb; /* gray-200 */
+    border-radius: 3px;
+    outline: none;
+    opacity: 0.7;
+    transition: opacity .2s;
+}
+
+.ai-slider:hover {
+    opacity: 1;
+}
+
+.ai-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #8b5cf6; /* purple-500 */
+    cursor: pointer;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 0 5px rgba(0,0,0,0.2);
+}
+
+.ai-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #8b5cf6; /* purple-500 */
+    cursor: pointer;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 0 5px rgba(0,0,0,0.2);
+}
